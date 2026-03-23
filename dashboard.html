@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Sistema de Tickets</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="app-layout">
+
+    <aside class="sidebar">
+      <div>
+        <div class="brand">
+          <div class="brand-logo">AT</div>
+          <div>
+            <h2>Access Tickets</h2>
+            <p>Panel de gestión</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-menu">
+          <a href="#" class="menu-item active">Bandeja de tickets</a>
+          <a href="#" class="menu-item">Tickets validados</a>
+          <a href="#" class="menu-item">Pendientes</a>
+          <a href="#" class="menu-item">Reportes</a>
+          <a href="#" class="menu-item">Configuración</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-box">
+          <span>Sesión iniciada</span>
+          <strong id="correoUsuario">admin@tickets.com</strong>
+        </div>
+        <button class="btn-logout" id="btnCerrarSesion">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1>Gestión de Tickets</h1>
+          <p>Consulta, revisa y da seguimiento a los casos registrados.</p>
+        </div>
+
+        <div class="topbar-actions">
+          <input
+            type="text"
+            id="searchTicketTop"
+            class="search-input"
+            placeholder="Buscar por ID, asunto, empresa..."
+          />
+          <button class="btn-primary" type="button">Nuevo filtro</button>
+        </div>
+      </header>
+
+      <section class="stats-grid">
+        <div class="stat-card">
+          <span>Total tickets</span>
+          <strong id="statTotal">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Abiertos</span>
+          <strong id="statAbiertos">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>En proceso</span>
+          <strong id="statEnProceso">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Cerrados</span>
+          <strong id="statCerrados">0</strong>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Bandeja de Tickets</h2>
+              <p>Listado general de casos registrados</p>
+            </div>
+
+            <div class="filters">
+              <input
+                type="text"
+                id="searchTicket"
+                placeholder="Buscar por ID o SITE"
+              />
+
+              <select id="filterEstado">
+                <option value="Todos">Todos los estados</option>
+                <option value="Abierto">Abierto</option>
+                <option value="En proceso">En proceso</option>
+                <option value="Cerrado">Cerrado</option>
+              </select>
+
+              <select id="filterDias">
+                <option value="Todos">Todos los días</option>
+                <option value="0">0 días</option>
+                <option value="1">1 día</option>
+                <option value="2">2 días</option>
+                <option value="3">3 días</option>
+                <option value="4">4 días</option>
+                <option value="5">5 días</option>
+                <option value="6">6 días</option>
+                <option value="7+">7 o más días</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>T. Incidencia</th>
+                  <th>T. Afectación</th>
+                  <th>Torre</th>
+                  <th>Site</th>
+                  <th>Estado</th>
+                  <th>Días</th>
+                </tr>
+              </thead>
+              <tbody id="ticketsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Detalle del Ticket</h2>
+              <p>Información completa del caso seleccionado</p>
+            </div>
+          </div>
+
+          <div class="detail-card">
+            <div class="detail-top">
+              <div>
+                <span class="detail-id" id="detailId">-</span>
+                <h3 id="detailAsunto">Sin asunto</h3>
+              </div>
+              <span class="badge badge-gray" id="detailEstado">-</span>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="label">Empresa</span>
+                <strong id="detailEmpresa">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Validado</span>
+                <strong id="detailValidado">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Responsable</span>
+                <strong id="detailResponsable">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Días</span>
+                <strong id="detailDias">0</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Tipo incidencia</span>
+                <strong id="detailIncidencia">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Tipo mantenimiento</span>
+                <strong id="detailMantenimiento">-</strong>
+              </div>
+
+              <div class="detail-item">
+                <span class="label">Reportado por</span>
+                <strong id="detailReportado">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Área</span>
+                <strong id="detailArea">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Site</span>
+                <strong id="detailSite">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Código único</span>
+                <strong id="detailCU">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Sitio cobicado</span>
+                <strong id="detailSitio">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Torrero</span>
+                <strong id="detailTorrero">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Impedimento</span>
+                <strong id="detailImpedimento">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Tipo afectación</span>
+                <strong id="detailAfectacion">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Ticket atención</span>
+                <strong id="detailAtencion">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Para</span>
+                <strong id="detailPara">-</strong>
+              </div>
+              <div class="detail-item">
+                <span class="label">Fecha registro</span>
+                <strong id="detailFechaRegistro">-</strong>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Descripción</span>
+              <p id="detailDescripcion">-</p>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Evidencias</span>
+              <div class="evidence-grid" id="evidenceGrid">
+                <div class="evidence-box">Sin evidencia</div>
+                <div class="evidence-box">Sin evidencia</div>
+                <div class="evidence-box">Sin evidencia</div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Actualizar gestión</span>
+              <div class="update-box">
+                <div class="update-grid">
+                  <div>
+                    <label for="updateEstado">Estado</label>
+                    <select id="updateEstado">
+                      <option>Abierto</option>
+                      <option>En proceso</option>
+                      <option>Cerrado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="updateValidado">Validado</label>
+                    <select id="updateValidado">
+                      <option>No</option>
+                      <option>Sí</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="updateResponsable">Responsable</label>
+                    <input type="text" id="updateResponsable" placeholder="Asignar responsable" />
+                  </div>
+                </div>
+
+                <div class="comment-box">
+                  <label for="updateComentario">Nuevo comentario</label>
+                  <textarea id="updateComentario" placeholder="Escriba aquí una actualización del ticket..."></textarea>
+                </div>
+
+                <div class="actions">
+                  <button class="btn-secondary" type="button" id="btnLimpiarGestion">Limpiar</button>
+                  <button class="btn-primary" type="button" id="btnGuardarActualizacion">Guardar actualización</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Histórico de cambios</span>
+              <div class="timeline" id="timelineHistorial"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
