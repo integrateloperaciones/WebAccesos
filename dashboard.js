@@ -4,7 +4,7 @@ const logueado = localStorage.getItem("usuarioLogueado");
 const correoUsuarioTexto = document.getElementById("correoUsuario");
 const btnCerrarSesion = document.getElementById("btnCerrarSesion");
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwicy3BAWSPnJLXK0f03O8YqaYL0f0yOeFc5GO91xpu2fsk_2HywgM1lqXJt6o13pQo/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyH61t1jGJTog6IKxBu5NjmwGP09XXKFKV8G7nNifzu8eRhAEv3P5x8aDIlS3-iilxe/exec";
 
 const tbody = document.getElementById("ticketsTableBody");
 
