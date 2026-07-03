@@ -16,6 +16,8 @@ const usuarios = [
   { email: "davida@accesos.com", password: "#David2026", nombre: "David Cesar Arenas Jara", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "planning@accesos.com", password: "#Planning2026", nombre: "Área de Planning", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "calidad@accesos.com", password: "#Calidad2026", nombre: "Área de Calidad", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
+  { email: "flm_huawei@accesos.com", password: "#Huawei2026", nombre: "FLM HUAWEI", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
+  { email: "flm_comfica@accesos.com", password: "#Comfica2026", nombre: "FLM COMFICA", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor001@accesos.com", password: "#001Super2026", nombre: "Supervisor 001", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor002@accesos.com", password: "#002Super2026", nombre: "Supervisor 002", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor003@accesos.com", password: "#003Super2026", nombre: "Supervisor 003", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
