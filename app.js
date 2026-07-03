@@ -16,13 +16,17 @@ const usuarios = [
   { email: "davida@accesos.com", password: "#David2026", nombre: "David Cesar Arenas Jara", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "planning@accesos.com", password: "#Planning2026", nombre: "Área de Planning", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "calidad@accesos.com", password: "#Calidad2026", nombre: "Área de Calidad", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
+  { email: "Huawei_FLM@accesos.com", password: "#Huawei2026", nombre: "FLM HUAWEI", rol: "viewer", modulos: ["bandeja"] },
+  { email: "Comfica_FLM@accesos.com", password: "#Comfica2026", nombre: "FLM COMFICA", rol: "viewer", modulos: ["bandeja"] },
   { email: "supervisor001@accesos.com", password: "#001Super2026", nombre: "Supervisor 001", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor002@accesos.com", password: "#002Super2026", nombre: "Supervisor 002", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor003@accesos.com", password: "#003Super2026", nombre: "Supervisor 003", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor004@accesos.com", password: "#004Super2026", nombre: "Supervisor 004", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor005@accesos.com", password: "#005Super2026", nombre: "Supervisor 005", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
   { email: "supervisor006@accesos.com", password: "#006Super2026", nombre: "Supervisor 006", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
-  { email: "supervisor007@accesos.com", password: "#007Super2026", nombre: "Supervisor 007", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] }
+  { email: "supervisor007@accesos.com", password: "#007Super2026", nombre: "Supervisor 007", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
+  { email: "supervisor008@accesos.com", password: "#008Super2026", nombre: "Supervisor 008", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] },
+  { email: "supervisor009@accesos.com", password: "#009Super2026", nombre: "Supervisor 009", rol: "viewer", modulos: ["bandeja", "blackcases", "reportes"] }
 ];
 
 function irAlDashboardSiYaHaySesion() {
