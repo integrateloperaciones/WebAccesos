@@ -3889,3 +3889,165 @@ body.sidebar-collapsed .black-drawer-overlay {
     resize: none !important;
   }
 }
+
+/* =========================
+   V13: Cambio de contraseña / cierre de sesión
+========================= */
+.btn-change-password {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  height: 38px;
+  background: rgba(37, 99, 235, 0.95);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.btn-change-password:hover {
+  background: #1d4ed8;
+}
+
+.modal-overlay,
+.session-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 18px;
+}
+
+.modal-overlay.hidden,
+.session-overlay.hidden {
+  display: none;
+}
+
+.password-modal-card {
+  width: min(420px, 94vw);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+  border: 1px solid #dbe7f5;
+  position: relative;
+}
+
+.password-modal-card h3 {
+  color: #0f172a;
+  font-size: 20px;
+  margin-bottom: 5px;
+}
+
+.modal-helper {
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: #e0edff;
+  color: #1d4ed8;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.password-form-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.password-form-grid label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.password-form-grid input {
+  height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+}
+
+.password-form-grid input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.modal-message {
+  min-height: 20px;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 10px;
+  color: #dc2626;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.session-card {
+  width: min(310px, 90vw);
+  min-height: 165px;
+  background: rgba(255,255,255,0.96);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  border: 1px solid #dbe7f5;
+  text-align: center;
+  padding: 22px;
+}
+
+.session-gif {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.session-card strong {
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.session-card span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* V13: tabla bandeja con columna Zona */
+.tickets-table {
+  min-width: 1120px;
+}
+.tickets-table th:nth-child(1), .tickets-table td:nth-child(1) { width: 70px; text-align: center; }
+.tickets-table th:nth-child(2), .tickets-table td:nth-child(2) { width: 120px; }
+.tickets-table th:nth-child(3), .tickets-table td:nth-child(3) { width: 120px; }
+.tickets-table th:nth-child(4), .tickets-table td:nth-child(4) { width: 110px; }
+.tickets-table th:nth-child(5), .tickets-table td:nth-child(5) { width: 170px; }
+.tickets-table th:nth-child(6), .tickets-table td:nth-child(6) { width: 125px; }
+.tickets-table th:nth-child(7), .tickets-table td:nth-child(7) { width: 150px; }
+.tickets-table th:nth-child(8), .tickets-table td:nth-child(8) { width: 145px; }
+.tickets-table th:nth-child(9), .tickets-table td:nth-child(9) { width: 115px; }
+.tickets-table th:nth-child(10), .tickets-table td:nth-child(10) { width: 120px; text-align: center; }
+.tickets-table th:nth-child(11), .tickets-table td:nth-child(11) { width: 140px; }
+.tickets-table th:nth-child(12), .tickets-table td:nth-child(12) { width: 70px; text-align: center; }
