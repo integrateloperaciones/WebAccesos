@@ -1,1 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <title>Dashboard | Sistema de Tickets</title>
+  <link rel="stylesheet" href="dashboard.css?v=13" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-header">
+          <div class="brand">
+            <div class="brand-logo">AT</div>
+            <div class="brand-text">
+              <h2>Access Tickets</h2>
+              <p>Panel de gestión</p>
+            </div>
+          </div>
+
+          <button class="toggle-sidebar-btn" id="btnToggleSidebar" type="button" title="Ocultar / mostrar menú">
+            ☰
+          </button>
+        </div>
+
+        <nav class="sidebar-menu">
+          <a href="#" class="menu-item active" id="menuBandeja">Bandeja de tickets</a>
+          <a href="#" class="menu-item" id="menuBlackCases">Black cases</a>
+          <a href="#" class="menu-item" id="menuReportes">Reportes</a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-box">
+          <span>Sesión iniciada</span>
+          <strong id="correoUsuario">admin@tickets.com</strong>
+        </div>
+        <button class="btn-change-password" id="btnCambiarPassword" type="button">Cambiar contraseña</button>
+        <button class="btn-logout" id="btnCerrarSesion" type="button">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+      <header class="topbar">
+        <div class="topbar-title-box">
+          <h1 id="pageTitle">REPORTINC</h1>
+          <p id="filterStatus" class="filter-status hidden">Filtro aplicado</p>
+        </div>
+
+        <div class="topbar-stats" id="topbarStats">
+          <div class="stat-card">
+            <span>Total tickets</span>
+            <strong id="statTotal">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Abiertos</span>
+            <strong id="statAbiertos">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>En proceso</span>
+            <strong id="statEnProceso">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>En validación</span>
+            <strong id="statEnValidacion">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Cerrados</span>
+            <strong id="statCerrados">0</strong>
+          </div>
+          <div class="stat-card">
+            <span>Cancelados</span>
+            <strong id="statCancelados">0</strong>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <input
+            type="text"
+            id="searchTicketTop"
+            class="search-input"
+            placeholder="Buscar por ID, SITE o CU..."
+          />
+          <button class="btn-primary" type="button" id="btnRefrescarData">Refrescar data</button>
+        </div>
+      </header>
+
+      <!-- VISTA BANDEJA -->
+      <section class="content-grid" id="bandejaView">
+        <div class="panel panel-tickets">
+          <div class="panel-header">
+            <div class="panel-title-actions">
+              <h2>Bandeja de Tickets</h2>
+              <button class="btn-clear-filters" type="button" id="btnLimpiarFiltros">
+                Limpiar filtros
+              </button>
+              <button class="btn-generate-report" type="button" id="btnGenerarReporte">
+                Generar reporte
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="tickets-table">
+              <thead>
+                <tr>
+                  <th>Color</th>
+                  <th>Fecha</th>
+                  <th>ID</th>
+                  <th>CU</th>
+                  <th>Site</th>
+                  <th>Zona</th>
+                  <th>T. Incidencia</th>
+                  <th>T. Afectación</th>
+                  <th>Torre</th>
+                  <th>Estado</th>
+                  <th>Responsable</th>
+                  <th>Días</th>
+                </tr>
+
+                <tr class="table-filter-row">
+                  <th>
+                    <div class="multi-filter" id="filterHeaderColor" data-label="Color"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderFechaRegistro" data-label="FECHA_REGISTRO"></div>
+                  </th>
+
+                  <th>
+                    <input id="filterHeaderId" type="text" placeholder="Buscar ID" />
+                  </th>
+
+                  <th>
+                    <input id="filterHeaderCu" type="text" placeholder="Buscar CU" />
+                  </th>
+
+                  <th>
+                    <input id="filterHeaderSite" type="text" placeholder="Buscar Site" />
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderZona" data-label="Zona"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderIncidencia" data-label="T. Incidencia"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderAfectacion" data-label="T. Afectación"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderTorre" data-label="Torre"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderEstado" data-label="Estado"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderResponsable" data-label="Responsable"></div>
+                  </th>
+
+                  <th>
+                    <div class="multi-filter" id="filterHeaderDias" data-label="Días"></div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="ticketsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-resizer" id="panelResizer" title="Arrastra para ajustar el tamaño"></div>
+
+        <div class="panel panel-detail">
+          <div class="detail-card">
+            <div class="detail-top">
+              <div class="detail-title-box">
+                <h3 id="detailAsunto">Sin asunto</h3>
+              </div>
+              <span class="badge badge-gray" id="detailEstado">-</span>
+            </div>
+
+            <div class="detail-grid">
+              <div class="detail-item"><span class="label">Empresa</span><strong id="detailEmpresa">-</strong></div>
+              <div class="detail-item"><span class="label">Validado</span><strong id="detailValidado">-</strong></div>
+              <div class="detail-item"><span class="label">Responsable</span><strong id="detailResponsable">-</strong></div>
+              <div class="detail-item"><span class="label">Días</span><strong id="detailDias">0</strong></div>
+              <div class="detail-item"><span class="label">Tipo incidencia</span><strong id="detailIncidencia">-</strong></div>
+              <div class="detail-item"><span class="label">Tipo mantenimiento</span><strong id="detailMantenimiento">-</strong></div>
+              <div class="detail-item"><span class="label">Reportado por</span><strong id="detailReportado">-</strong></div>
+              <div class="detail-item"><span class="label">Área</span><strong id="detailArea">-</strong></div>
+              <div class="detail-item"><span class="label">Site</span><strong id="detailSite">-</strong></div>
+              <div class="detail-item"><span class="label">Zona</span><strong id="detailZona">-</strong></div>
+              <div class="detail-item"><span class="label">Código único</span><strong id="detailCU">-</strong></div>
+              <div class="detail-item"><span class="label">Sitio cobicado</span><strong id="detailSitio">-</strong></div>
+              <div class="detail-item"><span class="label">Torrero</span><strong id="detailTorrero">-</strong></div>
+              <div class="detail-item"><span class="label">Impedimento</span><strong id="detailImpedimento">-</strong></div>
+              <div class="detail-item"><span class="label">Tipo afectación</span><strong id="detailAfectacion">-</strong></div>
+              <div class="detail-item"><span class="label">Ticket atención</span><strong id="detailAtencion">-</strong></div>
+              <div class="detail-item"><span class="label">Para</span><strong id="detailPara">-</strong></div>
+              <div class="detail-item"><span class="label">Fecha registro</span><strong id="detailFechaRegistro">-</strong></div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Descripción</span>
+              <p id="detailDescripcion">-</p>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Evidencias</span>
+              <div class="evidence-grid" id="evidenceGrid">
+                <div class="evidence-box empty">Sin evidencia</div>
+                <div class="evidence-box empty">Sin evidencia</div>
+                <div class="evidence-box empty">Sin evidencia</div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Actualizar gestión</span>
+              <div class="update-box">
+                <div class="update-grid">
+                  <div>
+                    <label for="updateEstado">Estado</label>
+                    <select id="updateEstado">
+                      <option value="">Seleccionar</option>
+                      <option value="Abierto">Abierto</option>
+                      <option value="En proceso">En proceso</option>
+                      <option value="En validación">En validación</option>
+                      <option value="Cerrado">Cerrado</option>
+                      <option value="Cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="updateValidado">Validado</label>
+                    <select id="updateValidado">
+                      <option value="">Seleccionar</option>
+                      <option value="No">No</option>
+                      <option value="Sí">Sí</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="updateTorre">Torre</label>
+                    <select id="updateTorre">
+                      <option value="">Seleccionar</option>
+                      <option value="TELEFÓNICA">TELEFÓNICA</option>
+                      <option value="IPT">IPT</option>
+                      <option value="ATP">ATP</option>
+                      <option value="SITES PERU">SITES PERU</option>
+                      <option value="ATC">ATC</option>
+                      <option value="PHOENIX">PHOENIX</option>
+                      <option value="TBS">TBS</option>
+                      <option value="QMC">QMC</option>
+                      <option value="ICON TOWER">ICON TOWER</option>
+                      <option value="TERCEROS_INTEGRAME">TERCEROS_INTEGRAME</option>
+                      <option value="ENTEL">ENTEL</option>
+                      <option value="TERCEROS_GOBIERNO_REGIONAL">TERCEROS_GOBIERNO_REGIONAL</option>
+                      <option value="SBA">SBA</option>
+                      <option value="TERCEROS_MINA">TERCEROS_MINA</option>
+                      <option value="SIN TORRE">SIN TORRE</option>
+                      <option value="MINERA CERRO VERDE">MINERA CERRO VERDE</option>
+                      <option value="ICONTOWER">ICONTOWER</option>
+                      <option value="INTEGRATEL">INTEGRATEL</option>
+                      <option value="DESARROLLOS TERRESTRES">DESARROLLOS TERRESTRES</option>
+                      <option value="INFRATEL TOWERS">INFRATEL TOWERS</option>
+                      <option value="BITEL">BITEL</option>
+                      <option value="TORRECOM">TORRECOM</option>
+                      <option value="CLARO">CLARO</option>
+                      <option value="PRONATEL">PRONATEL</option>
+                      <option value="FITEL">FITEL</option>
+                      <option value="TERCEROS_CLINICA ANGLOAMERICA">TERCEROS_CLINICA ANGLOAMERICA</option>
+                      <option value="TEL. PARTNERS">TEL. PARTNERS</option>
+                      <option value="INFRATEL">INFRATEL</option>
+                      <option value="CENS">CENS</option>
+                      <option value="TDP">TDP</option>
+                      <option value="IPD">IPD</option>
+                      <option value="TERCEROS_IPD">TERCEROS_IPD</option>
+                      <option value="TERCEROS_ENERSUR">TERCEROS_ENERSUR</option>
+                      <option value="AMERICA TV">AMERICA TV</option>
+                      <option value="TERCEROS_CEMENTOS PACASMAYO">TERCEROS_CEMENTOS PACASMAYO</option>
+                      <option value="TELECOMMUNICATION PARTNERS">TELECOMMUNICATION PARTNERS</option>
+                      <option value="AWC">AWC</option>
+                      <option value="TERCEROS_MUNICIPALIDAD">TERCEROS_MUNICIPALIDAD</option>
+                      <option value="TERCEROS_SOUTHERN">TERCEROS_SOUTHERN</option>
+                      <option value="TERCEROS_CAMPOSOL">TERCEROS_CAMPOSOL</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label for="updateResponsable">Responsable</label>
+                    <select id="updateResponsable">
+                      <option value="">Seleccionar</option>
+                      <option value="ENERGÍA">ENERGÍA</option>
+                      <option value="TORRERA">TORRERA</option>
+                      <option value="TORRERA INFRA">TORRERA INFRA</option>
+                      <option value="TORRERA ACCESOS">TORRERA ACCESOS</option>
+                      <option value="TORRERA ING">TORRERA ING</option>
+                      <option value="TORRERA CONST">TORRERA CONST</option>
+                      <option value="FLM">FLM</option>
+                      <option value="SWAP">SWAP</option>
+                      <option value="FACILITIES">FACILITIES</option>
+                      <option value="LEASES">LEASES</option>
+                      <option value="DESPLIEGUE">DESPLIEGUE</option>
+                      <option value="TERRITORIOS">TERRITORIOS</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="comment-box">
+                  <label for="updateComentario">Nuevo comentario</label>
+                  <textarea id="updateComentario" placeholder="Escriba aquí una actualización del ticket..."></textarea>
+                </div>
+
+                <div class="actions">
+                  <button class="btn-secondary" type="button" id="btnLimpiarGestion">Limpiar</button>
+                  <button class="btn-primary" type="button" id="btnGuardarActualizacion">Guardar actualización</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <span class="label">Histórico de cambios</span>
+              <div class="timeline" id="timelineHistorial"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+
+      <!-- VISTA BLACK CASES -->
+      <section class="blackcases-view hidden" id="blackCasesView">
+        <div class="panel panel-blackcases">
+          <div class="panel-header">
+            <div class="panel-title-actions">
+              <h2>Black cases</h2>
+              <button class="btn-clear-filters" type="button" id="btnBlackLimpiarFiltros">Limpiar filtros</button>
+              <button class="btn-secondary" type="button" id="btnBlackExportarExcel">Exportar Excel</button>
+              <button class="btn-primary" type="button" id="btnBlackNuevoCaso">Agregar caso</button>
+            </div>
+          </div>
+
+          <div class="table-wrapper black-table-wrapper">
+            <table class="tickets-table blackcases-table">
+              <thead>
+                <tr>
+                  <th>Color</th>
+                  <th>Fecha</th>
+                  <th>ID</th>
+                  <th>CU</th>
+                  <th>Site</th>
+                  <th>Zona</th>
+                  <th>Departamento</th>
+                  <th>Torrera</th>
+                  <th>Responsable</th>
+                  <th>Área</th>
+                  <th>Persona</th>
+                  <th>Casuística</th>
+                  <th>Afectación</th>
+                  <th>Estatus</th>
+                  <th>Días</th>
+                  <th>Último comentario</th>
+                </tr>
+                <tr class="table-filter-row">
+                  <th><div class="multi-filter" id="blackFilterColor" data-label="Color"></div></th>
+                  <th><div class="multi-filter" id="blackFilterFecha" data-label="Fecha"></div></th>
+                  <th><input id="blackFilterId" type="text" placeholder="Buscar ID" /></th>
+                  <th><input id="blackFilterCu" type="text" placeholder="Buscar CU" /></th>
+                  <th><input id="blackFilterSite" type="text" placeholder="Buscar Site" /></th>
+                  <th><div class="multi-filter" id="blackFilterZona" data-label="Zona"></div></th>
+                  <th><div class="multi-filter" id="blackFilterDepartamento" data-label="Departamento"></div></th>
+                  <th><div class="multi-filter" id="blackFilterTorrera" data-label="Torrera"></div></th>
+                  <th><div class="multi-filter" id="blackFilterResponsable" data-label="Responsable"></div></th>
+                  <th><div class="multi-filter" id="blackFilterArea" data-label="Área"></div></th>
+                  <th><div class="multi-filter" id="blackFilterPersona" data-label="Persona"></div></th>
+                  <th><div class="multi-filter" id="blackFilterCasuistica" data-label="Casuística"></div></th>
+                  <th><div class="multi-filter" id="blackFilterAfectacion" data-label="Afectación"></div></th>
+                  <th><div class="multi-filter" id="blackFilterEstatus" data-label="Estatus"></div></th>
+                  <th><div class="multi-filter" id="blackFilterDias" data-label="Días"></div></th>
+                  <th><input id="blackFilterComentario" type="text" placeholder="Buscar comentario" /></th>
+                </tr>
+              </thead>
+              <tbody id="blackCasesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VISTA REPORTES / POWER BI -->
+      <section class="powerbi-view hidden" id="reportesView">
+        <iframe
+          class="powerbi-frame"
+          title="TicketsAcceso"
+          src="https://app.powerbi.com/view?r=eyJrIjoiOGY0NTY5YjYtYjM5Yi00MzI4LWJjMjQtMDQ2ZDU0Mzk2YjUxIiwidCI6IjA3MzMzZmJkLWJkMDctNGI4OC1iZjY0LTQ2ZmRmZDI5NGU5MCIsImMiOjR9"
+          frameborder="0"
+          allowfullscreen="true">
+        </iframe>
+      </section>
+    </main>
+  </div>
+
+
+  <!-- MODAL GENERAR REPORTE -->
+  <div class="report-modal hidden" id="reportModal" aria-hidden="true">
+    <div class="report-modal-card" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+      <div class="report-modal-header">
+        <div>
+          <h2 id="reportModalTitle">Generar reporte</h2>
+        </div>
+        <button class="report-close-btn" type="button" id="btnCerrarReporte" title="Cerrar ventana">×</button>
+      </div>
+
+      <div class="report-modal-body">
+        <section class="report-pdf-area" id="reportPdfArea">
+          <div class="report-sheet">
+            <div class="report-hero">
+              <div class="report-brand-box">
+                <div class="report-brand-icon report-brand-logo"><img src="pictures/movistar.gif" alt="Movistar" /></div>
+                <div>
+                  <h1>REPORTINC</h1>
+                  <p>Gestión de Accesos</p>
+                </div>
+              </div>
+              <div class="report-meta-box">
+                <strong>Reporte de tickets filtrados</strong>
+                <span id="reportGeneratedAt">-</span>
+                <span id="reportTotalTickets">0 tickets considerados</span>
+              </div>
+            </div>
+
+            <div class="report-filter-section">
+              <h3>Filtros aplicados</h3>
+              <div class="report-filter-chips" id="reportFiltrosAplicados"></div>
+            </div>
+
+            <div class="report-chart-grid">
+              <div class="report-box">
+                <div class="report-box-title">Vista mensual</div>
+                <div class="report-chart" id="reportChartMensual"></div>
+              </div>
+              <div class="report-box">
+                <div class="report-box-title">Vista por estado</div>
+                <div class="report-chart" id="reportChartEstado"></div>
+              </div>
+            </div>
+
+            <div class="report-notes-box">
+              <label for="reportNotas">Notas:</label>
+              <textarea id="reportNotas" placeholder="Escriba una nota para este reporte..."></textarea>
+            </div>
+
+            <div class="report-summary-box">
+              <div class="report-summary-title-row">
+                <div class="report-box-title">Resumen de filas consideradas</div>
+                <button class="btn-add-report-ticket report-screen-only" type="button" id="btnAgregarTicketsReporte">Agregar tickets</button>
+              </div>
+              <div class="report-table-wrapper">
+                <table class="report-summary-table">
+                  <colgroup>
+                    <col class="col-fecha" />
+                    <col class="col-id" />
+                    <col class="col-cu" />
+                    <col class="col-site" />
+                    <col class="col-incidencia" />
+                    <col class="col-afectacion" />
+                    <col class="col-torre" />
+                    <col class="col-estado" />
+                    <col class="col-responsable" />
+                    <col class="col-dias" />
+                    <col class="col-comentario" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>FECHA</th>
+                      <th>ID</th>
+                      <th>CU</th>
+                      <th>SITE</th>
+                      <th>T. INCIDENCIA</th>
+                      <th>T. AFECTACIÓN</th>
+                      <th>TORRE</th>
+                      <th>ESTADO</th>
+                      <th>RESPONSABLE</th>
+                      <th>DÍAS</th>
+                      <th>COMENTARIO</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reportResumenBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      </div>
+
+      <div class="report-modal-actions">
+        <button class="btn-secondary" type="button" id="btnDescargarReporteExcel">Descargar Excel</button>
+        <button class="btn-primary" type="button" id="btnDescargarReportePdf">Descargar PDF</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- MODAL AGREGAR TICKETS AL REPORTE -->
+  <div class="add-ticket-modal hidden" id="addTicketModal" aria-hidden="true">
+    <div class="add-ticket-card" role="dialog" aria-modal="true" aria-labelledby="addTicketTitle">
+      <div class="add-ticket-header">
+        <div>
+          <h2 id="addTicketTitle">Agregar tickets al reporte</h2>
+        </div>
+        <button class="add-ticket-close" type="button" id="btnCerrarAgregarTickets" title="Cerrar">×</button>
+      </div>
+
+      <div class="add-ticket-body">
+        <div class="add-ticket-search-box">
+          <input id="addTicketSearch" type="text" placeholder="Buscar por ID, CU o SITE..." />
+        </div>
+
+        <div class="add-ticket-selected-box">
+          <strong>Tickets seleccionados para adicionar</strong>
+          <div id="addTicketSeleccionados" class="add-ticket-selected-list"></div>
+        </div>
+
+        <div class="add-ticket-results" id="addTicketResultados"></div>
+      </div>
+
+      <div class="add-ticket-actions">
+        <button class="btn-secondary" type="button" id="btnCancelarAgregarTickets">Cancelar</button>
+        <button class="btn-primary" type="button" id="btnAplicarAgregarTickets">Aplicar al reporte</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- DRAWER BLACK CASES -->
+  <div class="black-drawer-overlay hidden" id="blackCaseDrawer" aria-hidden="true">
+    <aside class="black-drawer" id="blackDrawerPanel" role="dialog" aria-modal="true" aria-labelledby="blackDrawerTitle">
+      <div class="black-drawer-header">
+        <div>
+          <h2 id="blackDrawerTitle">Nuevo black case</h2>
+          <p id="blackDrawerSubtitle"></p>
+        </div>
+        <button class="black-drawer-close" type="button" id="btnBlackCerrarDrawer" title="Cerrar">×</button>
+      </div>
+
+      <div class="black-drawer-body">
+        <section class="black-form-section" id="blackSiteSearchSection">
+          <label for="blackSiteSearch">Buscar sitio por CU o nombre</label>
+          <input id="blackSiteSearch" type="text" placeholder="Ejemplo: LI00636, PALMAS, VIDAL..." autocomplete="off" />
+          <div class="black-site-results" id="blackSiteResults"></div>
+        </section>
+
+        <form id="blackCaseForm" autocomplete="off">
+          <div class="black-form-grid">
+            <div><label>Fecha registro</label><input id="blackFechaRegistro" type="text" readonly /></div>
+            <div><label>ID</label><input id="blackId" type="text" readonly /></div>
+            <div><label>CU</label><input id="blackCu" type="text" readonly /></div>
+            <div><label>Nombre de sitio</label><input id="blackSite" type="text" readonly /></div>
+            <div><label>Zona</label><input id="blackZona" type="text" readonly /></div>
+            <div><label>DPTO</label><input id="blackDepartamento" type="text" readonly /></div>
+            <div><label>Torrera</label><input id="blackTorrera" type="text" readonly /></div>
+            <div><label>Responsable</label><input id="blackResponsable" type="text" /></div>
+            <div><label>Área responsable</label><input id="blackAreaResponsable" type="text" /></div>
+            <div><label>Persona responsable</label><input id="blackPersonaResponsable" type="text" /></div>
+            <div><label>Casuística</label><input id="blackCasuistica" type="text" /></div>
+            <div><label>Detalle casuística</label><input id="blackDetalleCasuistica" type="text" /></div>
+            <div><label>Afectación de servicios</label><input id="blackAfectacionServicios" type="text" /></div>
+            <div><label>Ingreso a blacklist</label><input id="blackIngresoBlacklist" type="text" /></div>
+            <div><label>Contrato</label><input id="blackContrato" type="text" /></div>
+            <div><label>Fecha liberación</label><input id="blackFechaLiberacion" type="date" /></div>
+            <div><label>Acuerdo</label><input id="blackAcuerdo" type="text" /></div>
+            <div><label>Vencimiento contrato</label><input id="blackVencimientoContrato" type="date" /></div>
+            <div><label>Secretaría general</label><input id="blackSecretariaGeneral" type="text" /></div>
+            <div>
+              <label>Estatus</label>
+              <select id="blackEstatus">
+                <option value="Pendiente">Pendiente</option>
+                <option value="Liberado">Liberado</option>
+                <option value="Cancelado">Cancelado</option>
+              </select>
+            </div>
+            <div><label>Reconfirmar borrado</label><input id="blackReconfirmarBorrado" type="text" /></div>
+            <div><label>Cruce comité disponibilidad</label><input id="blackCruceComite" type="text" /></div>
+          </div>
+
+          <div class="black-comment-box">
+            <label for="blackComentariosTorrero">Comentarios del torrero</label>
+            <textarea id="blackComentariosTorrero" placeholder="Comentario inicial o actualización del caso..."></textarea>
+          </div>
+
+          <div class="black-comment-box">
+            <label for="blackComentarioSeguimiento">Comentario de seguimiento</label>
+            <textarea id="blackComentarioSeguimiento" placeholder="Este comentario se guardará en SEGUIMIENTO_BLACK..."></textarea>
+          </div>
+        </form>
+
+        <section class="black-history-section">
+          <div class="black-history-title">Trazabilidad</div>
+          <div class="timeline" id="blackTimeline"></div>
+        </section>
+      </div>
+
+      <div class="black-drawer-actions">
+        <button class="btn-secondary" type="button" id="btnBlackCancelar">Cancelar</button>
+        <button class="btn-primary" type="button" id="btnBlackGuardar">Guardar</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="modal-overlay hidden" id="passwordModal">
+    <div class="password-modal-card">
+      <button class="modal-close-btn" id="btnCerrarPasswordModal" type="button">×</button>
+      <h3>Cambiar contraseña</h3>
+      <p class="modal-helper">Ingresa tu contraseña actual y define una nueva.</p>
+      <div class="password-form-grid">
+        <label>Contraseña actual</label>
+        <input id="passwordActual" type="password" placeholder="Contraseña actual" autocomplete="current-password" />
+        <label>Nueva contraseña</label>
+        <input id="passwordNueva" type="password" placeholder="Nueva contraseña" autocomplete="new-password" />
+        <label>Repite nueva contraseña</label>
+        <input id="passwordNueva2" type="password" placeholder="Repite la nueva contraseña" autocomplete="new-password" />
+      </div>
+      <p id="passwordModalMsg" class="modal-message"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" type="button" id="btnCancelarPassword">Cancelar</button>
+        <button class="btn-primary" type="button" id="btnGuardarPassword">Guardar contraseña</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="session-overlay hidden" id="sessionOverlay">
+    <div class="session-card">
+      <img src="pictures/movistar.gif" alt="Cerrando sesión" class="session-gif" />
+      <strong id="sessionOverlayTitle">Cerrando sesión...</strong>
+      <span id="sessionOverlayMessage">Un momento por favor.</span>
+    </div>
+  </div>
+
+  <div class="toast-center hidden" id="toastCenter">
+    <div class="toast-card">
+      <strong id="toastTitle">Operación realizada</strong>
+      <span id="toastMessage">Se guardó correctamente.</span>
+    </div>
+  </div>
+
+  <div class="loader-overlay hidden" id="loaderOverlay">
+    <div class="loader-box">
+      <img src="pictures/movistar.gif" alt="Cargando..." class="loader-gif" />
+      <p id="loaderText">Cargando data...</p>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="sites-data.js?v=13"></script>
+  <script src="dashboard.js?v=13"></script>
+  <script src="blackcases.js?v=13"></script>
+</body>
+</html>
 
