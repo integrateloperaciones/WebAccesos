@@ -1004,6 +1004,6 @@ function blackInicializar() {
     if (e.target === blackCaseDrawer) blackCerrarDrawer();
   });
   blackSiteSearch?.addEventListener("input", blackRenderizarBusquedaSites);
-}
+} CCC
 
 window.addEventListener("DOMContentLoaded", blackInicializar);
