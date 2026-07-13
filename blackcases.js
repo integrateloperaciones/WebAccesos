@@ -2,7 +2,7 @@
    BLACK CASES MODULE
    Mantiene independiente la lógica de Bandeja de Tickets.
 ========================= */
-const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbxpyeJ3zz3THhw1vPFcIn7YDIz3XGgvRha2zeW7Kv4PhtGxBc9YZgBz370VhqC-Cc8z/exec";
 
 const menuBlackCases = document.getElementById("menuBlackCases");
 const blackCasesView = document.getElementById("blackCasesView");
@@ -27,6 +27,7 @@ const blackFilterTextInputs = {
   id: document.getElementById("blackFilterId"),
   cu: document.getElementById("blackFilterCu"),
   site: document.getElementById("blackFilterSite"),
+  idInc: document.getElementById("blackFilterIdInc"),
   comentario: document.getElementById("blackFilterComentario")
 };
 
@@ -56,6 +57,7 @@ const BLACK_FORM = {
   MES: document.getElementById("blackMes"),
   ANIO: document.getElementById("blackAnio"),
   CRUCE_COMITE_DISPONIBILIDAD: document.getElementById("blackCruceComite"),
+  ID_INC: document.getElementById("blackIdInc"),
   COMENTARIO_SEGUIMIENTO: document.getElementById("blackComentarioSeguimiento")
 };
 
@@ -342,6 +344,7 @@ function blackAplicarFiltros() {
   const idTerm = blackNormalizar(blackFilterTextInputs.id?.value || "");
   const cuTerm = blackNormalizar(blackFilterTextInputs.cu?.value || "");
   const siteTerm = blackNormalizar(blackFilterTextInputs.site?.value || "");
+  const idIncTerm = blackNormalizar(blackFilterTextInputs.idInc?.value || "");
   const comentarioTerm = blackNormalizar(blackFilterTextInputs.comentario?.value || "");
 
   blackFiltrados = blackData.filter(ticket => {
@@ -351,13 +354,15 @@ function blackAplicarFiltros() {
       ticket.SITE,
       ticket.ULTIMO_COMENTARIO,
       ticket.CASUISTICA,
-      ticket.DETALLE_CASUISTICA
+      ticket.DETALLE_CASUISTICA,
+      ticket.ID_INC
     ].join(" "));
 
     if (topTerm && !textoGeneral.includes(topTerm)) return false;
     if (idTerm && !blackNormalizar(ticket.ID).includes(idTerm)) return false;
     if (cuTerm && !blackNormalizar(ticket.CU).includes(cuTerm)) return false;
     if (siteTerm && !blackNormalizar(ticket.SITE).includes(siteTerm)) return false;
+    if (idIncTerm && !blackNormalizar(ticket.ID_INC).includes(idIncTerm)) return false;
     if (comentarioTerm && !blackNormalizar(ticket.ULTIMO_COMENTARIO).includes(comentarioTerm)) return false;
 
     for (const [campo, config] of Object.entries(blackFiltrosConfig)) {
@@ -474,7 +479,7 @@ function blackBadge(estatus) {
 function blackRenderizarTabla() {
   if (!blackCasesTableBody) return;
   if (!blackFiltrados.length) {
-    blackCasesTableBody.innerHTML = `<tr><td colspan="16" style="text-align:center;padding:20px;">No hay casos para mostrar.</td></tr>`;
+    blackCasesTableBody.innerHTML = `<tr><td colspan="17" style="text-align:center;padding:20px;">No hay casos para mostrar.</td></tr>`;
     return;
   }
 
@@ -502,6 +507,7 @@ function blackRenderizarTabla() {
         </td>
         <td title="${blackEscape(ticket.FECHA_REGISTRO)}">${blackEscape(blackFechaSolo(ticket.FECHA_REGISTRO))}</td>
         <td><strong>${blackEscape(id)}</strong></td>
+        <td title="${blackEscape(ticket.ID_INC || "")}">${blackEscape(ticket.ID_INC || "-")}</td>
         <td>${blackEscape(ticket.CU)}</td>
         <td title="${blackEscape(ticket.SITE)}">${blackEscape(ticket.SITE)}</td>
         <td>${blackEscape(ticket.ZONA)}</td>
@@ -571,6 +577,7 @@ function blackResetForm() {
 function blackSetForm(ticket) {
   BLACK_FORM.FECHA_REGISTRO.value = blackFechaSolo(ticket.FECHA_REGISTRO || new Date().toISOString());
   BLACK_FORM.ID.value = ticket.ID || "";
+  if (BLACK_FORM.ID_INC) BLACK_FORM.ID_INC.value = ticket.ID_INC || "";
   BLACK_FORM.CU.value = ticket.CU || "";
   BLACK_FORM.SITE.value = ticket.SITE || "";
   BLACK_FORM.ZONA.value = ticket.ZONA || "";
@@ -615,6 +622,7 @@ async function blackAbrirNuevo() {
   BLACK_FORM.FECHA_REGISTRO.value = ahora.toLocaleDateString("es-PE");
   BLACK_FORM.ESTATUS.value = "Pendiente";
   BLACK_FORM.ID.value = "Se generará al guardar";
+  if (BLACK_FORM.ID_INC) BLACK_FORM.ID_INC.value = "";
 }
 
 async function blackAbrirEditar(ticket) {
@@ -637,6 +645,7 @@ function blackCerrarDrawer() {
 function blackObtenerPayload() {
   return {
     id: blackModo === "editar" ? BLACK_FORM.ID.value.trim() : "",
+    ID_INC: BLACK_FORM.ID_INC ? BLACK_FORM.ID_INC.value.trim() : "",
     CU: BLACK_FORM.CU.value.trim(),
     SITE: BLACK_FORM.SITE.value.trim(),
     ZONA: BLACK_FORM.ZONA.value.trim(),
@@ -683,6 +692,19 @@ async function blackGuardar() {
     const result = await blackFetch({}, { accion, ...payload });
     if (!result || result.ok === false) throw new Error(result?.mensaje || result?.detalle || "No se pudo guardar");
     blackActualizarLocalTrasGuardar(result, payload);
+
+    // V17: si este Black case está relacionado a un INC, limpiamos el caché
+    // del historial de Bandeja para que los comentarios BLACK aparezcan allí también.
+    const idIncRelacionado = String(result?.idInc || result?.ID_INC || payload.ID_INC || "").trim();
+    if (idIncRelacionado) {
+      try {
+        if (typeof limpiarCacheHistorialTicket === "function") limpiarCacheHistorialTicket(idIncRelacionado);
+        if (typeof ticketSeleccionado !== "undefined" && ticketSeleccionado && String(ticketSeleccionado.ID || "").trim() === idIncRelacionado) {
+          if (typeof cargarHistorial === "function") cargarHistorial(idIncRelacionado);
+        }
+      } catch (_) {}
+    }
+
     blackCerrarDrawer();
   } catch (error) {
     console.error(error);
@@ -806,6 +828,36 @@ function blackAplicarPermisosFormulario() {
   }
 }
 
+function blackSepararTextoHistorial(texto) {
+  const limpio = String(texto || "").trim();
+  if (!limpio) return { datos: "Actualización registrada", comentario: "" };
+
+  const partes = limpio
+    .split("|")
+    .map(x => String(x || "").trim())
+    .filter(Boolean);
+
+  const datos = [];
+  const comentarios = [];
+
+  partes.forEach(parte => {
+    const normalizado = parte.toLowerCase();
+    if (normalizado.startsWith("comentario:")) {
+      comentarios.push(parte.replace(/^comentario\s*:\s*/i, "").trim());
+    } else {
+      datos.push(parte);
+    }
+  });
+
+  if (!datos.length && comentarios.length) datos.push("Actualización registrada");
+  if (!comentarios.length && !datos.length) comentarios.push(limpio);
+
+  return {
+    datos: datos.join(" | ") || "Actualización registrada",
+    comentario: comentarios.join(" | ")
+  };
+}
+
 async function blackCargarHistorial(id) {
   if (!blackTimeline) return;
   blackTimeline.innerHTML = `<div class="timeline-empty">Cargando historial...</div>`;
@@ -815,20 +867,41 @@ async function blackCargarHistorial(id) {
       blackTimeline.innerHTML = `<div class="timeline-empty">Sin seguimiento registrado.</div>`;
       return;
     }
-    blackTimeline.innerHTML = historial.map(item => `
-      <div class="timeline-item">
+    const ordenado = [...historial].sort((a, b) => blackTiempoHistorial(b.FECHA) - blackTiempoHistorial(a.FECHA));
+    blackTimeline.innerHTML = ordenado.map(item => {
+      const origen = String(item.ORIGEN || "BLACK").toUpperCase();
+      const esAcceso = origen.includes("ACCESO");
+      const partes = blackSepararTextoHistorial(item.TEXTO || "Actualización");
+      const badge = esAcceso ? "ACCESO" : "BLACK CASE";
+      return `
+      <div class="timeline-item ${esAcceso ? "timeline-origen-acceso" : "timeline-origen-black"}">
         <div class="timeline-dot"></div>
-        <div class="timeline-content">
-          <span class="timeline-main">${blackEscape(item.TEXTO || "Actualización")}</span>
-          <div class="timeline-meta">
-            <span>Usuario: ${blackEscape(item.USUARIO || "-")}</span>
-            <span class="timeline-date">${blackEscape(blackFechaHora(item.FECHA))}</span>
+        <div class="timeline-content timeline-card-v16">
+          <div class="timeline-head">
+            <span class="timeline-origin-badge ${esAcceso ? "" : "black"}">${badge}</span>
+            <span class="timeline-date-inline">${blackEscape(blackFechaHora(item.FECHA))}</span>
           </div>
+          <p class="timeline-data-line">${blackEscape(partes.datos)}</p>
+          ${partes.comentario ? `<p class="timeline-comment-line"><span>Comentario:</span> ${blackEscape(partes.comentario)}</p>` : ""}
+          <div class="timeline-separator"></div>
+          <div class="timeline-user-line"><span>User:</span> ${blackEscape(item.USUARIO || "-")}</div>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   } catch (error) {
     blackTimeline.innerHTML = `<div class="timeline-empty">No se pudo cargar el historial.</div>`;
   }
+}
+
+function blackTiempoHistorial(valor) {
+  if (!valor) return 0;
+  if (valor instanceof Date) return valor.getTime();
+  const texto = String(valor).trim();
+  const d = new Date(texto);
+  if (!isNaN(d.getTime())) return d.getTime();
+  const m = texto.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0)).getTime();
+  return 0;
 }
 
 function blackFechaHora(valor) {
