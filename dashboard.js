@@ -3,13 +3,14 @@ const btnCerrarSesion = document.getElementById("btnCerrarSesion");
 const btnRefrescarData = document.getElementById("btnRefrescarData");
 const btnLimpiarFiltros = document.getElementById("btnLimpiarFiltros");
 const btnGenerarReporte = document.getElementById("btnGenerarReporte");
+const btnFiltrarBlackCases = document.getElementById("btnFiltrarBlackCases");
 const btnToggleSidebar = document.getElementById("btnToggleSidebar");
 const btnCambiarPassword = document.getElementById("btnCambiarPassword");
 
 const loaderOverlay = document.getElementById("loaderOverlay");
 const loaderText = document.getElementById("loaderText");
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxpyeJ3zz3THhw1vPFcIn7YDIz3XGgvRha2zeW7Kv4PhtGxBc9YZgBz370VhqC-Cc8z/exec";
 
 const tbody = document.getElementById("ticketsTableBody");
 
@@ -43,6 +44,9 @@ const updateResponsable = document.getElementById("updateResponsable");
 const updateComentario = document.getElementById("updateComentario");
 const btnGuardarActualizacion = document.getElementById("btnGuardarActualizacion");
 const btnLimpiarGestion = document.getElementById("btnLimpiarGestion");
+const chkPasarBlackCase = document.getElementById("chkPasarBlackCase");
+const blackcaseToggleBox = document.getElementById("blackcaseToggleBox");
+const blackcaseToggleHelp = document.getElementById("blackcaseToggleHelp");
 
 const menuBandeja = document.getElementById("menuBandeja");
 const menuReportes = document.getElementById("menuReportes");
@@ -93,6 +97,7 @@ let ticketsReporteFinal = [];
 let ticketsAgregarTemporal = new Set();
 let historialTicketsCache = new Map();
 let historialTicketRequestSeq = 0;
+let filtroSoloBlackCases = false;
 
 
 /* =========================
@@ -640,6 +645,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnGenerarReporte.addEventListener("click", abrirVentanaReporte);
   }
 
+  if (btnFiltrarBlackCases) {
+    btnFiltrarBlackCases.addEventListener("click", alternarFiltroBlackCases);
+  }
+
   if (btnCerrarReporte) {
     btnCerrarReporte.addEventListener("click", cerrarVentanaReporte);
   }
@@ -917,7 +926,31 @@ function actualizarTarjetas(tickets) {
   if (statCancelados) statCancelados.textContent = cancelados;
 }
 
+function ticketEsBlackCase(ticket) {
+  const esBlack = String(ticket?.ES_BLACK_CASE || "").trim().toUpperCase();
+  const idBlack = String(ticket?.ID_BLACK_CASE || "").trim();
+  return esBlack === "SI" || esBlack === "SÍ" || esBlack === "TRUE" || esBlack === "1" || Boolean(idBlack);
+}
+
+function actualizarBotonFiltroBlackCases() {
+  if (!btnFiltrarBlackCases) return;
+  btnFiltrarBlackCases.classList.toggle("active", filtroSoloBlackCases);
+  btnFiltrarBlackCases.textContent = filtroSoloBlackCases ? "Todos los tickets" : "Black cases";
+  btnFiltrarBlackCases.title = filtroSoloBlackCases
+    ? "Volver a mostrar todos los tickets"
+    : "Mostrar solo tickets derivados a Black cases";
+}
+
+function alternarFiltroBlackCases() {
+  filtroSoloBlackCases = !filtroSoloBlackCases;
+  selectedTicketId = null;
+  actualizarBotonFiltroBlackCases();
+  aplicarFiltros();
+}
+
 function limpiarFiltros() {
+  filtroSoloBlackCases = false;
+  actualizarBotonFiltroBlackCases();
   if (searchTicketTop) searchTicketTop.value = "";
   if (filterHeaderId) filterHeaderId.value = "";
   if (filterHeaderCu) filterHeaderCu.value = "";
@@ -973,6 +1006,8 @@ function ticketCumpleFiltros(ticket, filtros, excluirCampo = null) {
   const site = String(ticket.SITE || "").toLowerCase();
   const zona = String(ticket.ZONA || "").toLowerCase();
 
+  if (filtroSoloBlackCases && !ticketEsBlackCase(ticket)) return false;
+
   const cumpleBusquedaGeneral =
     filtros.busquedaGeneral === "" ||
     id.includes(filtros.busquedaGeneral) ||
@@ -1022,6 +1057,7 @@ function hayFiltroAplicado() {
     filtros.id ||
     filtros.cu ||
     filtros.site ||
+    filtroSoloBlackCases ||
     hayFiltroMultiple
   );
 }
@@ -1488,6 +1524,7 @@ function mostrarDetalle(ticket) {
   ]);
 
   limpiarFormularioGestion();
+  configurarCheckboxBlackCase(ticket);
 
   cargarHistorial(ticket.ID);
 }
@@ -1500,6 +1537,22 @@ function limpiarFormularioGestion() {
   if (updateTorre) updateTorre.value = "";
   updateResponsable.value = "";
   updateComentario.value = "";
+  if (chkPasarBlackCase && (!ticketSeleccionado || !ticketEsBlackCase(ticketSeleccionado))) {
+    chkPasarBlackCase.checked = false;
+  }
+}
+
+function configurarCheckboxBlackCase(ticket) {
+  if (!chkPasarBlackCase) return;
+  const esBlack = ticketEsBlackCase(ticket);
+  chkPasarBlackCase.checked = esBlack;
+  chkPasarBlackCase.disabled = esBlack || esUsuarioVisualizador();
+  if (blackcaseToggleBox) blackcaseToggleBox.classList.toggle("locked", esBlack || esUsuarioVisualizador());
+  if (blackcaseToggleHelp) {
+    blackcaseToggleHelp.textContent = esBlack
+      ? `Este ticket ya fue pasado a Black case${ticket.ID_BLACK_CASE ? " (" + ticket.ID_BLACK_CASE + ")" : ""}. No se puede desmarcar.`
+      : "Al guardar se creará un caso en BLACKLIST con IDP correlativo y quedará relacionado a este INC.";
+  }
 }
 
 async function guardarActualizacion() {
@@ -1518,6 +1571,7 @@ async function guardarActualizacion() {
   const torre = updateTorre ? updateTorre.value.trim() : "";
   const responsable = updateResponsable.value.trim();
   const comentario = updateComentario.value.trim();
+  const pasarABlackCase = Boolean(chkPasarBlackCase?.checked) && !ticketEsBlackCase(ticketSeleccionado);
 
   const payload = {
     accion: "guardarSeguimiento",
@@ -1530,16 +1584,17 @@ async function guardarActualizacion() {
   if (validado) payload.validado = validado;
   if (torre) payload.torre = torre;
   if (responsable) payload.responsable = responsable;
-  if (comentario) payload.comentario = comentario;
+  if (comentario && !pasarABlackCase) payload.comentario = comentario;
 
-  const noHayCambios =
-    !payload.estado &&
-    !payload.validado &&
-    !payload.torre &&
-    !payload.responsable &&
-    !payload.comentario;
+  const hayCambiosGestion = Boolean(
+    payload.estado ||
+    payload.validado ||
+    payload.torre ||
+    payload.responsable ||
+    payload.comentario
+  );
 
-  if (noHayCambios) {
+  if (!hayCambiosGestion && !pasarABlackCase) {
     mostrarToastCentral("Sin cambios", "No hay cambios para guardar.", 1600);
     return;
   }
@@ -1547,26 +1602,60 @@ async function guardarActualizacion() {
   if (btnGuardarActualizacion) btnGuardarActualizacion.disabled = true;
 
   try {
-    showLoader("Guardando actualización...");
+    showLoader(pasarABlackCase ? "Guardando y pasando a Black case..." : "Guardando actualización...");
 
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      cache: "no-store"
-    });
+    if (hayCambiosGestion) {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        cache: "no-store"
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (!result.ok) {
-      mostrarToastCentral("No se pudo guardar", `${result.mensaje || "Error"}${result.detalle ? " - " + result.detalle : ""}`, 2600);
-      return;
+      if (!result.ok) {
+        mostrarToastCentral("No se pudo guardar", `${result.mensaje || "Error"}${result.detalle ? " - " + result.detalle : ""}`, 2600);
+        return;
+      }
+
+      actualizarTicketLocalTrasGuardar(ticketSeleccionado.ID, payload);
+      anexarHistorialLocal(ticketSeleccionado.ID, payload, "ACCESO");
     }
 
-    actualizarTicketLocalTrasGuardar(ticketSeleccionado.ID, payload);
-    anexarHistorialLocal(ticketSeleccionado.ID, payload);
+    if (pasarABlackCase) {
+      const payloadBlack = {
+        accion: "pasarTicketABlackCase",
+        id: ticketSeleccionado.ID,
+        comentario: comentario || "Paso a Black cases",
+        usuario: localStorage.getItem("nombreUsuario") || "Sin usuario",
+        rolUsuario: obtenerRolUsuarioActual()
+      };
+
+      const responseBlack = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payloadBlack),
+        cache: "no-store"
+      });
+
+      const resultBlack = await responseBlack.json();
+
+      if (!resultBlack.ok) {
+        mostrarToastCentral("No se pudo pasar a Black case", `${resultBlack.mensaje || "Error"}${resultBlack.detalle ? " - " + resultBlack.detalle : ""}`, 3000);
+        return;
+      }
+
+      actualizarTicketLocalBlackCase(ticketSeleccionado.ID, resultBlack.idBlack);
+      limpiarCacheHistorialTicket(ticketSeleccionado.ID);
+      await cargarHistorial(ticketSeleccionado.ID);
+      mostrarToastCentral("Black case creado", `Se creó ${resultBlack.idBlack || "el IDP"} y quedó relacionado al INC.`, 1800);
+    } else {
+      mostrarToastCentral("Guardado", "Actualización registrada correctamente.", 1200);
+    }
+
     limpiarFormularioGestion();
-    mostrarToastCentral("Guardado", "Actualización registrada correctamente.", 1200);
+    if (ticketSeleccionado) configurarCheckboxBlackCase(ticketSeleccionado);
   } catch (error) {
     console.error("Error al guardar actualización:", error);
     mostrarToastCentral("Error", "No se pudo guardar la actualización.", 2200);
@@ -1601,14 +1690,15 @@ function actualizarTicketLocalTrasGuardar(idTicket, payload) {
   aplicarFiltros();
 }
 
-function anexarHistorialLocal(idTicket, payload) {
+function anexarHistorialLocal(idTicket, payload, origen = "ACCESO") {
   const id = String(idTicket || "").trim();
   if (!id) return;
   const item = {
     FECHA: new Date().toISOString(),
     TEXTO: construirTextoHistorialLocal(payload),
     USUARIO: payload.usuario || localStorage.getItem("nombreUsuario") || "Sin usuario",
-    ETIQUETA_USUARIO: "Usuario"
+    ETIQUETA_USUARIO: "Usuario",
+    ORIGEN: origen
   };
   const actual = historialTicketsCache.get(id) || [];
   historialTicketsCache.set(id, [item, ...actual]);
@@ -1668,6 +1758,27 @@ async function guardarColorTicket(idTicket, colorKey) {
   }
 }
 
+function actualizarTicketLocalBlackCase(idTicket, idBlack) {
+  const id = String(idTicket || "").trim();
+  const blackId = String(idBlack || "").trim();
+  const actualizar = (ticket) => {
+    if (String(ticket.ID || "").trim() !== id) return ticket;
+    return {
+      ...ticket,
+      ES_BLACK_CASE: "SI",
+      ID_BLACK_CASE: blackId,
+      ULTIMO_COMENTARIO: blackId ? `Paso a Black cases: ${blackId}` : "Paso a Black cases",
+      ULTIMA_ACTUALIZACION: new Date().toISOString()
+    };
+  };
+  ticketsData = ticketsData.map(actualizar);
+  ticketsFiltrados = ticketsFiltrados.map(actualizar);
+  if (ticketSeleccionado && String(ticketSeleccionado.ID || "").trim() === id) {
+    ticketSeleccionado = actualizar(ticketSeleccionado);
+  }
+  aplicarFiltros();
+}
+
 function actualizarColorLocalTicket(idTicket, nuevoColor) {
   const id = String(idTicket || "").trim();
   const color = normalizarColorTicket(nuevoColor);
@@ -1721,6 +1832,36 @@ function cerrarTodosLosMenusColor() {
   });
 }
 
+function separarTextoHistorial(texto) {
+  const limpio = String(texto || "").trim();
+  if (!limpio) return { datos: "Actualización registrada", comentario: "" };
+
+  const partes = limpio
+    .split("|")
+    .map(x => String(x || "").trim())
+    .filter(Boolean);
+
+  const datos = [];
+  const comentarios = [];
+
+  partes.forEach(parte => {
+    const normalizado = parte.toLowerCase();
+    if (normalizado.startsWith("comentario:")) {
+      comentarios.push(parte.replace(/^comentario\s*:\s*/i, "").trim());
+    } else {
+      datos.push(parte);
+    }
+  });
+
+  if (!datos.length && comentarios.length) datos.push("Actualización registrada");
+  if (!comentarios.length && !datos.length) comentarios.push(limpio);
+
+  return {
+    datos: datos.join(" | ") || "Actualización registrada",
+    comentario: comentarios.join(" | ")
+  };
+}
+
 function renderizarHistorialItems(idTicket, historial) {
   const timeline = document.getElementById("timelineHistorial");
   if (!timeline) return;
@@ -1729,9 +1870,11 @@ function renderizarHistorialItems(idTicket, historial) {
     timeline.innerHTML = `
       <div class="timeline-item">
         <div class="timeline-dot"></div>
-        <div class="timeline-content">
-          <strong>Sin historial</strong>
-          <p>No hay registros para este ticket.</p>
+        <div class="timeline-content timeline-card-v16">
+          <div class="timeline-head"><span class="timeline-origin-badge">ACCESO</span><span class="timeline-date-inline">-</span></div>
+          <p class="timeline-data-line">Sin historial</p>
+          <p class="timeline-comment-line">No hay registros para este ticket.</p>
+          <div class="timeline-user-line"><span>User:</span> -</div>
         </div>
       </div>
     `;
@@ -1744,17 +1887,25 @@ function renderizarHistorialItems(idTicket, historial) {
   historialOrdenado.forEach(item => {
     const fecha = formatearFecha(item.FECHA);
     const texto = item.TEXTO || "Sin detalle";
-    const etiquetaUsuario = item.ETIQUETA_USUARIO || "Usuario";
-    const usuario = item.USUARIO ? `${etiquetaUsuario}: ${item.USUARIO}` : "";
+    const partes = separarTextoHistorial(texto);
+    const usuario = item.USUARIO || "-";
+    const origen = String(item.ORIGEN || "ACCESO").toUpperCase();
+    const esBlack = origen.includes("BLACK");
+    const badge = esBlack ? "BLACK CASE" : "ACCESO";
 
     const div = document.createElement("div");
-    div.className = "timeline-item";
+    div.className = `timeline-item ${esBlack ? "timeline-origen-black" : "timeline-origen-acceso"}`;
     div.innerHTML = `
       <div class="timeline-dot"></div>
-      <div class="timeline-content">
-        <strong>${escapeHtml(fecha)}</strong>
-        <p>${escapeHtml(texto)}</p>
-        ${usuario ? `<p>${escapeHtml(usuario)}</p>` : ""}
+      <div class="timeline-content timeline-card-v16">
+        <div class="timeline-head">
+          <span class="timeline-origin-badge ${esBlack ? "black" : ""}">${badge}</span>
+          <span class="timeline-date-inline">${escapeHtml(fecha)}</span>
+        </div>
+        <p class="timeline-data-line">${escapeHtml(partes.datos)}</p>
+        ${partes.comentario ? `<p class="timeline-comment-line"><span>Comentario:</span> ${escapeHtml(partes.comentario)}</p>` : ""}
+        <div class="timeline-separator"></div>
+        <div class="timeline-user-line"><span>User:</span> ${escapeHtml(usuario)}</div>
       </div>
     `;
     timeline.appendChild(div);
@@ -1790,11 +1941,14 @@ function renderizarHistorialRapidoDesdeTicket(ticket) {
 
   if (!comentario) {
     timeline.innerHTML = `
-      <div class="timeline-item">
+      <div class="timeline-item timeline-origen-acceso">
         <div class="timeline-dot"></div>
-        <div class="timeline-content">
-          <strong>Cargando historial...</strong>
-          <p>Obteniendo trazabilidad completa.</p>
+        <div class="timeline-content timeline-card-v16">
+          <div class="timeline-head"><span class="timeline-origin-badge">ACCESO</span><span class="timeline-date-inline">-</span></div>
+          <p class="timeline-data-line">Cargando historial...</p>
+          <p class="timeline-comment-line">Obteniendo trazabilidad completa.</p>
+          <div class="timeline-separator"></div>
+          <div class="timeline-user-line"><span>User:</span> -</div>
         </div>
       </div>
     `;
@@ -1802,15 +1956,24 @@ function renderizarHistorialRapidoDesdeTicket(ticket) {
   }
 
   timeline.innerHTML = `
-    <div class="timeline-item">
+    <div class="timeline-item timeline-origen-acceso">
       <div class="timeline-dot"></div>
-      <div class="timeline-content">
-        <strong>${escapeHtml(formatearFecha(fecha))}</strong>
-        <p>${escapeHtml(comentario)}</p>
-        <p>Último comentario disponible. Cargando historial completo...</p>
+      <div class="timeline-content timeline-card-v16">
+        <div class="timeline-head"><span class="timeline-origin-badge">ACCESO</span><span class="timeline-date-inline">${escapeHtml(formatearFecha(fecha))}</span></div>
+        <p class="timeline-data-line">Último comentario disponible. Cargando historial completo...</p>
+        <p class="timeline-comment-line"><span>Comentario:</span> ${escapeHtml(comentario)}</p>
+        <div class="timeline-separator"></div>
+        <div class="timeline-user-line"><span>User:</span> -</div>
       </div>
     </div>
   `;
+}
+
+function limpiarCacheHistorialTicket(idTicket) {
+  const id = String(idTicket || "").trim();
+  if (!id) return;
+  historialTicketsCache.delete(id);
+  try { sessionStorage.removeItem("historial_ticket_" + id); } catch (_) {}
 }
 
 async function cargarHistorial(idTicket) {
