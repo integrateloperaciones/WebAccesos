@@ -1,6 +1,6 @@
 const loginForm = document.getElementById("loginForm");
 const mensaje = document.getElementById("mensaje");
-const API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxpyeJ3zz3THhw1vPFcIn7YDIz3XGgvRha2zeW7Kv4PhtGxBc9YZgBz370VhqC-Cc8z/exec";
 
 const btnLoginCambiarPassword = document.getElementById("btnLoginCambiarPassword");
 const loginPasswordModal = document.getElementById("loginPasswordModal");
