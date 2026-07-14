@@ -10,7 +10,15 @@ const btnCambiarPassword = document.getElementById("btnCambiarPassword");
 const loaderOverlay = document.getElementById("loaderOverlay");
 const loaderText = document.getElementById("loaderText");
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxpyeJ3zz3THhw1vPFcIn7YDIz3XGgvRha2zeW7Kv4PhtGxBc9YZgBz370VhqC-Cc8z/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+
+/* SUPABASE V19 - lectura rápida de historial.
+   Pega aquí tu Publishable key de Supabase. Si queda vacío, usará Apps Script como antes. */
+const SUPABASE_URL = "https://bfghvgnhmgpkibqxwaod.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_r80JDjWG-iL-epCIqQUvRg_lsJRiMt3";
+const SUPABASE_HISTORIAL_TABLE = "historial_unificado";
+const SUPABASE_HISTORIAL_ACTIVO = true;
+
 
 const tbody = document.getElementById("ticketsTableBody");
 
@@ -1834,7 +1842,7 @@ function cerrarTodosLosMenusColor() {
 
 function separarTextoHistorial(texto) {
   const limpio = String(texto || "").trim();
-  if (!limpio) return { datos: "Actualización registrada", comentario: "" };
+  if (!limpio) return { datos: "", comentario: "" };
 
   const partes = limpio
     .split("|")
@@ -1853,11 +1861,10 @@ function separarTextoHistorial(texto) {
     }
   });
 
-  if (!datos.length && comentarios.length) datos.push("Actualización registrada");
   if (!comentarios.length && !datos.length) comentarios.push(limpio);
 
   return {
-    datos: datos.join(" | ") || "Actualización registrada",
+    datos: datos.join(" | "),
     comentario: comentarios.join(" | ")
   };
 }
@@ -1902,7 +1909,7 @@ function renderizarHistorialItems(idTicket, historial) {
           <span class="timeline-origin-badge ${esBlack ? "black" : ""}">${badge}</span>
           <span class="timeline-date-inline">${escapeHtml(fecha)}</span>
         </div>
-        <p class="timeline-data-line">${escapeHtml(partes.datos)}</p>
+        ${partes.datos ? `<p class="timeline-data-line">${escapeHtml(partes.datos)}</p>` : ""}
         ${partes.comentario ? `<p class="timeline-comment-line"><span>Comentario:</span> ${escapeHtml(partes.comentario)}</p>` : ""}
         <div class="timeline-separator"></div>
         <div class="timeline-user-line"><span>User:</span> ${escapeHtml(usuario)}</div>
@@ -1976,6 +1983,106 @@ function limpiarCacheHistorialTicket(idTicket) {
   try { sessionStorage.removeItem("historial_ticket_" + id); } catch (_) {}
 }
 
+
+function supabaseHistorialDisponible() {
+  return Boolean(
+    SUPABASE_HISTORIAL_ACTIVO &&
+    SUPABASE_URL &&
+    SUPABASE_PUBLISHABLE_KEY &&
+    !String(SUPABASE_PUBLISHABLE_KEY).includes("PEGAR_AQUI")
+  );
+}
+
+function convertirSupabaseAHistorial(item) {
+  const origen = String(item.origen || item.ORIGEN || "ACCESO").toUpperCase();
+  const partes = [];
+  if (item.estado) partes.push(`Estado: ${item.estado}`);
+  if (item.validado) partes.push(`Validado: ${item.validado}`);
+  if (item.responsable) partes.push(`Responsable: ${item.responsable}`);
+  if (item.torrero) partes.push(`Torrero: ${item.torrero}`);
+  if (item.estatus) partes.push(`Estatus: ${item.estatus}`);
+  if (item.comentario) partes.push(`Comentario: ${item.comentario}`);
+
+  const comentarioBase = String(item.comentario || "").trim();
+  const texto = partes.join(" | ") || (origen.includes("BLACK") ? "Black case creado" : "Ticket creado");
+
+  return {
+    FECHA: item.fecha || item.FECHA || item.created_at || "",
+    TEXTO: texto,
+    USUARIO: item.usuario || item.USUARIO || "-",
+    ETIQUETA_USUARIO: "Usuario",
+    ORIGEN: origen.includes("BLACK") ? "BLACK CASE" : "ACCESO",
+    ID_INC: item.id_inc || "",
+    ID_BLACK: item.id_black || ""
+  };
+}
+
+
+function construirEventoCreacionAcceso(ticket) {
+  if (!ticket) return null;
+
+  const fecha =
+    ticket.FECHA_REGISTRO ||
+    ticket.FECHA ||
+    ticket.FECHA_CREACION ||
+    ticket.FECHA_CREACIÓN ||
+    "";
+
+  if (!fecha) return null;
+
+  const usuario =
+    ticket.REPORTADO ||
+    ticket.CORREO ||
+    ticket.USER ||
+    ticket.USUARIO ||
+    "Sistema";
+
+  return {
+    FECHA: fecha,
+    TEXTO: "Comentario: Ticket creado",
+    USUARIO: usuario,
+    ETIQUETA_USUARIO: "User",
+    ORIGEN: "ACCESO",
+    ES_CREACION_VISUAL: true
+  };
+}
+
+function agregarEventoCreacionAccesoAHistorial(historial, ticket) {
+  const lista = Array.isArray(historial) ? historial.slice() : [];
+  const eventoCreacion = construirEventoCreacionAcceso(ticket);
+
+  if (!eventoCreacion) return lista;
+
+  const yaExisteCreacion = lista.some(item => {
+    const origen = String(item.ORIGEN || "").toUpperCase();
+    const texto = String(item.TEXTO || item.COMENTARIO || "").toLowerCase();
+    return origen.includes("ACCESO") && texto.includes("ticket creado");
+  });
+
+  if (!yaExisteCreacion) {
+    lista.push(eventoCreacion);
+  }
+
+  return lista;
+}
+
+async function cargarHistorialDesdeSupabasePorInc(idInc) {
+  if (!supabaseHistorialDisponible()) return null;
+  const url = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${SUPABASE_HISTORIAL_TABLE}?select=*&id_inc=eq.${encodeURIComponent(idInc)}&order=fecha.desc`;
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+    }
+  });
+  if (!response.ok) throw new Error("Supabase historial HTTP " + response.status);
+  const data = await response.json();
+  if (!Array.isArray(data)) return null;
+  return data.map(convertirSupabaseAHistorial);
+}
+
 async function cargarHistorial(idTicket) {
   const timeline = document.getElementById("timelineHistorial");
   const id = String(idTicket || "").trim();
@@ -1998,15 +2105,30 @@ async function cargarHistorial(idTicket) {
   renderizarHistorialRapidoDesdeTicket(ticketActual);
 
   try {
-    const response = await fetch(`${API_URL}?accion=obtenerSeguimiento&id=${encodeURIComponent(id)}`, {
-      method: "GET",
-      cache: "no-store"
-    });
+    let historial = null;
 
-    const historial = await response.json();
+    try {
+      historial = await cargarHistorialDesdeSupabasePorInc(id);
+    } catch (supabaseError) {
+      console.warn("Supabase historial no disponible, usando Apps Script:", supabaseError);
+    }
+
+    if (!historial) {
+      const response = await fetch(`${API_URL}?accion=obtenerSeguimiento&id=${encodeURIComponent(id)}`, {
+        method: "GET",
+        cache: "no-store"
+      });
+      historial = await response.json();
+    }
+
     if (seq !== historialTicketRequestSeq || String(selectedTicketId || "").trim() !== id) return;
 
     if (!Array.isArray(historial)) throw new Error(historial?.mensaje || "Respuesta inválida del historial");
+
+    // Híbrido V20: la creación del ticket se arma desde el objeto ACCESO ya cargado,
+    // y los seguimientos posteriores se leen desde Supabase o fallback Apps Script.
+    historial = agregarEventoCreacionAccesoAHistorial(historial, ticketActual);
+
     historialTicketsCache.set(id, historial);
     guardarHistorialCachePersistente(id, historial);
     renderizarHistorialItems(id, historial);
