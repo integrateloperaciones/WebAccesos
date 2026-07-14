@@ -2,7 +2,15 @@
    BLACK CASES MODULE
    Mantiene independiente la lógica de Bandeja de Tickets.
 ========================= */
-const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbxpyeJ3zz3THhw1vPFcIn7YDIz3XGgvRha2zeW7Kv4PhtGxBc9YZgBz370VhqC-Cc8z/exec";
+const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+
+/* SUPABASE V19 - lectura rápida de historial.
+   Pega aquí tu Publishable key de Supabase. Si queda vacío, usará Apps Script como antes. */
+const BLACK_SUPABASE_URL = "https://bfghvgnhmgpkibqxwaod.supabase.co";
+const BLACK_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_r80JDjWG-iL-epCIqQUvRg_lsJRiMt3";
+const BLACK_SUPABASE_HISTORIAL_TABLE = "historial_unificado";
+const BLACK_SUPABASE_HISTORIAL_ACTIVO = true;
+
 
 const menuBlackCases = document.getElementById("menuBlackCases");
 const blackCasesView = document.getElementById("blackCasesView");
@@ -572,6 +580,7 @@ function blackResetForm() {
   if (blackSiteSearch) blackSiteSearch.value = "";
   if (blackSiteResults) blackSiteResults.innerHTML = "";
   if (blackTimeline) blackTimeline.innerHTML = `<div class="timeline-empty">Sin seguimiento registrado.</div>`;
+  if (BLACK_FORM.COMENTARIOS_DEL_TORRERO) BLACK_FORM.COMENTARIOS_DEL_TORRERO.readOnly = false;
 }
 
 function blackSetForm(ticket) {
@@ -591,6 +600,7 @@ function blackSetForm(ticket) {
   BLACK_FORM.AFECTACION_DE_SERVICIOS.value = ticket.AFECTACION_DE_SERVICIOS || "";
   BLACK_FORM.INGRESO_A_BLACKLIST.value = ticket.INGRESO_A_BLACKLIST || "";
   BLACK_FORM.COMENTARIOS_DEL_TORRERO.value = ticket.COMENTARIOS_DEL_TORRERO || "";
+  if (BLACK_FORM.COMENTARIOS_DEL_TORRERO) BLACK_FORM.COMENTARIOS_DEL_TORRERO.readOnly = blackModo === "editar";
   BLACK_FORM.CONTRATO.value = ticket.CONTRATO || "";
   BLACK_FORM.FECHA_LIBERACION.value = blackFechaInput(ticket.FECHA_LIBERACION);
   BLACK_FORM.ACUERDO.value = ticket.ACUERDO || "";
@@ -623,6 +633,7 @@ async function blackAbrirNuevo() {
   BLACK_FORM.ESTATUS.value = "Pendiente";
   BLACK_FORM.ID.value = "Se generará al guardar";
   if (BLACK_FORM.ID_INC) BLACK_FORM.ID_INC.value = "";
+  if (BLACK_FORM.COMENTARIOS_DEL_TORRERO) BLACK_FORM.COMENTARIOS_DEL_TORRERO.readOnly = false;
 }
 
 async function blackAbrirEditar(ticket) {
@@ -830,7 +841,7 @@ function blackAplicarPermisosFormulario() {
 
 function blackSepararTextoHistorial(texto) {
   const limpio = String(texto || "").trim();
-  if (!limpio) return { datos: "Actualización registrada", comentario: "" };
+  if (!limpio) return { datos: "", comentario: "" };
 
   const partes = limpio
     .split("|")
@@ -849,21 +860,145 @@ function blackSepararTextoHistorial(texto) {
     }
   });
 
-  if (!datos.length && comentarios.length) datos.push("Actualización registrada");
   if (!comentarios.length && !datos.length) comentarios.push(limpio);
 
   return {
-    datos: datos.join(" | ") || "Actualización registrada",
+    datos: datos.join(" | "),
     comentario: comentarios.join(" | ")
   };
+}
+
+
+function blackSupabaseHistorialDisponible() {
+  return Boolean(
+    BLACK_SUPABASE_HISTORIAL_ACTIVO &&
+    BLACK_SUPABASE_URL &&
+    BLACK_SUPABASE_PUBLISHABLE_KEY &&
+    !String(BLACK_SUPABASE_PUBLISHABLE_KEY).includes("PEGAR_AQUI")
+  );
+}
+
+function blackConvertirSupabaseAHistorial(item) {
+  const origen = String(item.origen || item.ORIGEN || "BLACK_CASE").toUpperCase();
+  const partes = [];
+  if (item.estado) partes.push(`Estado: ${item.estado}`);
+  if (item.validado) partes.push(`Validado: ${item.validado}`);
+  if (item.responsable) partes.push(`Responsable: ${item.responsable}`);
+  if (item.torrero) partes.push(`Torrero: ${item.torrero}`);
+  if (item.estatus) partes.push(`Estatus: ${item.estatus}`);
+  if (item.comentario) partes.push(`Comentario: ${item.comentario}`);
+
+  const texto = partes.join(" | ") || (origen.includes("ACCESO") ? "Ticket creado" : "Black case creado");
+
+  return {
+    FECHA: item.fecha || item.FECHA || item.created_at || "",
+    TEXTO: texto,
+    USUARIO: item.usuario || item.USUARIO || "-",
+    ETIQUETA_USUARIO: "Usuario",
+    ORIGEN: origen.includes("ACCESO") ? "ACCESO" : "BLACK CASE",
+    ID_INC: item.id_inc || "",
+    ID_BLACK: item.id_black || ""
+  };
+}
+
+
+function blackConstruirEventoCreacion(caso) {
+  if (!caso) return null;
+
+  const fecha =
+    caso.FECHA_REGISTRO ||
+    caso.FECHA ||
+    caso.FECHA_CREACION ||
+    caso.FECHA_CREACIÓN ||
+    "";
+
+  if (!fecha) return null;
+
+  const estatus = blackEstatusCanonico(caso.ESTATUS || caso.STATUS || "Pendiente");
+  const usuario =
+    caso.USER ||
+    caso.USUARIO ||
+    caso.CREADO_POR ||
+    caso["CREADO POR"] ||
+    "Sistema";
+
+  return {
+    FECHA: fecha,
+    TEXTO: `Estatus: ${estatus} | Comentario: Black case creado`,
+    USUARIO: usuario,
+    ETIQUETA_USUARIO: "User",
+    ORIGEN: "BLACK CASE",
+    ID_INC: caso.ID_INC || "",
+    ID_BLACK: caso.ID || "",
+    ES_CREACION_VISUAL: true
+  };
+}
+
+function blackAgregarEventoCreacionAHistorial(historial, caso) {
+  const lista = Array.isArray(historial) ? historial.slice() : [];
+  const eventoCreacion = blackConstruirEventoCreacion(caso);
+
+  if (!eventoCreacion) return lista;
+
+  const yaExisteCreacion = lista.some(item => {
+    const origen = String(item.ORIGEN || "").toUpperCase();
+    const texto = String(item.TEXTO || item.COMENTARIO || "").toLowerCase();
+    return origen.includes("BLACK") && texto.includes("black case creado");
+  });
+
+  if (!yaExisteCreacion) {
+    lista.push(eventoCreacion);
+  }
+
+  return lista;
+}
+
+async function blackCargarHistorialDesdeSupabase(idBlack, idInc) {
+  if (!blackSupabaseHistorialDisponible()) return null;
+  const filtros = [];
+  if (idBlack) filtros.push(`id_black.eq.${encodeURIComponent(idBlack)}`);
+  if (idInc) filtros.push(`id_inc.eq.${encodeURIComponent(idInc)}`);
+  if (!filtros.length) return null;
+  const orQuery = filtros.length === 1 ? `&${filtros[0].replace('.eq.', '=eq.')}` : `&or=(${filtros.join(',')})`;
+  const url = `${BLACK_SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${BLACK_SUPABASE_HISTORIAL_TABLE}?select=*${orQuery}&order=fecha.desc`;
+  const response = await fetch(url, {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      apikey: BLACK_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${BLACK_SUPABASE_PUBLISHABLE_KEY}`
+    }
+  });
+  if (!response.ok) throw new Error("Supabase historial HTTP " + response.status);
+  const data = await response.json();
+  if (!Array.isArray(data)) return null;
+  return data.map(blackConvertirSupabaseAHistorial);
 }
 
 async function blackCargarHistorial(id) {
   if (!blackTimeline) return;
   blackTimeline.innerHTML = `<div class="timeline-empty">Cargando historial...</div>`;
   try {
-    const historial = await blackFetch({ accion: "obtenerSeguimientoBlack", id });
-    if (!Array.isArray(historial) || historial.length === 0) {
+    let historial = null;
+    const casoActual = blackSeleccionado || blackData.find(x => String(x.ID || "").trim() === String(id || "").trim()) || {};
+
+    try {
+      historial = await blackCargarHistorialDesdeSupabase(id, casoActual.ID_INC || "");
+    } catch (supabaseError) {
+      console.warn("Supabase historial black no disponible, usando Apps Script:", supabaseError);
+    }
+
+    if (!historial) {
+      historial = await blackFetch({ accion: "obtenerSeguimientoBlack", id });
+    }
+
+    if (!Array.isArray(historial)) historial = [];
+
+    // Híbrido V20: la creación del Black case se arma desde BLACKLIST ya cargado,
+    // y los seguimientos posteriores se leen desde Supabase o fallback Apps Script.
+    historial = blackAgregarEventoCreacionAHistorial(historial, casoActual);
+
+    if (historial.length === 0) {
       blackTimeline.innerHTML = `<div class="timeline-empty">Sin seguimiento registrado.</div>`;
       return;
     }
@@ -881,7 +1016,7 @@ async function blackCargarHistorial(id) {
             <span class="timeline-origin-badge ${esAcceso ? "" : "black"}">${badge}</span>
             <span class="timeline-date-inline">${blackEscape(blackFechaHora(item.FECHA))}</span>
           </div>
-          <p class="timeline-data-line">${blackEscape(partes.datos)}</p>
+          ${partes.datos ? `<p class="timeline-data-line">${blackEscape(partes.datos)}</p>` : ""}
           ${partes.comentario ? `<p class="timeline-comment-line"><span>Comentario:</span> ${blackEscape(partes.comentario)}</p>` : ""}
           <div class="timeline-separator"></div>
           <div class="timeline-user-line"><span>User:</span> ${blackEscape(item.USUARIO || "-")}</div>
