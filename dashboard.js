@@ -48,6 +48,8 @@ const filterHeaderDias = document.getElementById("filterHeaderDias");
 const updateEstado = document.getElementById("updateEstado");
 const updateValidado = document.getElementById("updateValidado");
 const updateTorre = document.getElementById("updateTorre");
+const updateIncidencia = document.getElementById("updateIncidencia");
+const updateAfectacion = document.getElementById("updateAfectacion");
 const updateResponsable = document.getElementById("updateResponsable");
 const updateComentario = document.getElementById("updateComentario");
 const btnGuardarActualizacion = document.getElementById("btnGuardarActualizacion");
@@ -358,6 +360,8 @@ function construirTextoHistorialLocal(payload) {
   if (payload.validado) partes.push(`Validado: ${payload.validado}`);
   if (payload.responsable) partes.push(`Responsable: ${payload.responsable}`);
   if (payload.torre) partes.push(`Torrero: ${payload.torre}`);
+  if (payload.incidencia) partes.push(`Incidencia: ${payload.incidencia}`);
+  if (payload.afectacion) partes.push(`Afectación: ${payload.afectacion}`);
   if (payload.comentario) partes.push(`Comentario: ${payload.comentario}`);
   return partes.join(" | ") || "Actualización registrada";
 }
@@ -1543,6 +1547,8 @@ function limpiarFormularioGestion() {
   updateEstado.value = "";
   updateValidado.value = "";
   if (updateTorre) updateTorre.value = "";
+  if (updateIncidencia) updateIncidencia.value = "";
+  if (updateAfectacion) updateAfectacion.value = "";
   updateResponsable.value = "";
   updateComentario.value = "";
   if (chkPasarBlackCase && (!ticketSeleccionado || !ticketEsBlackCase(ticketSeleccionado))) {
@@ -1577,6 +1583,8 @@ async function guardarActualizacion() {
   const estado = updateEstado.value.trim();
   const validado = updateValidado.value.trim();
   const torre = updateTorre ? updateTorre.value.trim() : "";
+  const incidencia = updateIncidencia ? updateIncidencia.value.trim() : "";
+  const afectacion = updateAfectacion ? updateAfectacion.value.trim() : "";
   const responsable = updateResponsable.value.trim();
   const comentario = updateComentario.value.trim();
   const pasarABlackCase = Boolean(chkPasarBlackCase?.checked) && !ticketEsBlackCase(ticketSeleccionado);
@@ -1591,6 +1599,8 @@ async function guardarActualizacion() {
   if (estado) payload.estado = estado;
   if (validado) payload.validado = validado;
   if (torre) payload.torre = torre;
+  if (incidencia) payload.incidencia = incidencia;
+  if (afectacion) payload.afectacion = afectacion;
   if (responsable) payload.responsable = responsable;
   if (comentario && !pasarABlackCase) payload.comentario = comentario;
 
@@ -1598,6 +1608,8 @@ async function guardarActualizacion() {
     payload.estado ||
     payload.validado ||
     payload.torre ||
+    payload.incidencia ||
+    payload.afectacion ||
     payload.responsable ||
     payload.comentario
   );
@@ -1686,6 +1698,8 @@ function actualizarTicketLocalTrasGuardar(idTicket, payload) {
     }
     if (payload.validado) nuevo.VALIDADO = payload.validado;
     if (payload.torre) nuevo.TORRERO = payload.torre;
+    if (payload.incidencia) nuevo.INCIDENCIA = payload.incidencia;
+    if (payload.afectacion) nuevo.AFECTACION = payload.afectacion;
     if (payload.responsable) nuevo.RESPONSABLE = payload.responsable;
     if (payload.comentario) nuevo.ULTIMO_COMENTARIO = payload.comentario;
     nuevo.ULTIMA_ACTUALIZACION = ahoraIso;
@@ -2001,9 +2015,23 @@ function convertirSupabaseAHistorial(item) {
   if (item.responsable) partes.push(`Responsable: ${item.responsable}`);
   if (item.torrero) partes.push(`Torrero: ${item.torrero}`);
   if (item.estatus) partes.push(`Estatus: ${item.estatus}`);
-  if (item.comentario) partes.push(`Comentario: ${item.comentario}`);
 
   const comentarioBase = String(item.comentario || "").trim();
+  if (comentarioBase) {
+    const comentarioNormalizado = comentarioBase.toLowerCase();
+    const esComentarioEstructurado =
+      comentarioNormalizado.includes("incidencia:") ||
+      comentarioNormalizado.includes("afectación:") ||
+      comentarioNormalizado.includes("afectacion:") ||
+      comentarioNormalizado.includes("comentario:");
+
+    if (esComentarioEstructurado) {
+      partes.push(comentarioBase);
+    } else {
+      partes.push(`Comentario: ${comentarioBase}`);
+    }
+  }
+
   const texto = partes.join(" | ") || (origen.includes("BLACK") ? "Black case creado" : "Ticket creado");
 
   return {
