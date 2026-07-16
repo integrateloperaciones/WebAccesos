@@ -9,7 +9,7 @@ Ocultar<!DOCTYPE html>
   <meta http-equiv="Expires" content="0" />
 
   <title>Dashboard | Sistema de Tickets</title>
-  <link rel="stylesheet" href="dashboard.css?v=19" />
+  <link rel="stylesheet" href="dashboard.css?v=26" />
 </head>
 <body>
   <div class="app-layout">
@@ -26,6 +26,10 @@ Ocultar<!DOCTYPE html>
 
           <button class="toggle-sidebar-btn" id="btnToggleSidebar" type="button" title="Ocultar / mostrar menú">
             ☰
+          </button>
+
+          <button class="sidebar-guide-reopen-btn" id="guideReopenBtn" type="button" title="Mostrar asistente guía" aria-label="Mostrar asistente guía">
+            <img src="pictures/access_bot_mascot.png" alt="" />
           </button>
         </div>
 
@@ -707,11 +711,52 @@ Ocultar<!DOCTYPE html>
     </div>
   </div>
 
+
+
+  <!-- Asistente guía visual: no usa API, solo respuestas locales por opciones -->
+  <div class="guide-assistant" id="guideAssistant" aria-live="polite">
+    <button class="guide-mascot-btn" id="guideMascotBtn" type="button" aria-label="Abrir asistente de ayuda">
+      <span class="guide-mini-bubble">¿Ayuda?</span>
+      <img src="pictures/access_bot_mascot.png" alt="Asistente guía" class="guide-mascot-img" />
+    </button>
+    <button class="guide-hide-all-btn" id="guideHideAllBtn" type="button" aria-label="Cerrar mascota guía" title="Cerrar asistente">×</button>
+
+    <section class="guide-chat-card" id="guideChatCard" aria-label="Chat de ayuda">
+      <div class="guide-chat-head">
+        <div>
+          <strong>Asistente guía</strong>
+          <span>Estoy aquí para ayudarte 👋</span>
+        </div>
+        <button class="guide-close-btn" id="guideCloseBtn" type="button" aria-label="Cerrar asistente">×</button>
+      </div>
+
+      <div class="guide-chat-body" id="guideChatBody">
+        <div class="guide-message guide-message-bot">
+          Hola, soy tu guía de Access Tickets. Elige una opción o escribe tu consulta.
+        </div>
+      </div>
+
+      <div class="guide-quick-options" id="guideQuickOptions">
+        <button type="button" data-guide-topic="actualizar">Actualizar ticket</button>
+        <button type="button" data-guide-topic="blackcases">Black cases</button>
+        <button type="button" data-guide-topic="historial">Historial</button>
+        <button type="button" data-guide-topic="filtros">Filtros</button>
+        <button type="button" data-guide-topic="incidencia">Incidencia</button>
+        <button type="button" data-guide-topic="afectacion">Afectación</button>
+      </div>
+
+      <form class="guide-input-row" id="guideInputForm">
+        <input id="guideInput" type="text" autocomplete="off" placeholder="Escribe tu consulta..." />
+        <button type="submit" aria-label="Enviar consulta">➜</button>
+      </form>
+    </section>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="sites-data.js?v=19"></script>
-  <script src="dashboard.js?v=19"></script>
-  <script src="blackcases.js?v=19"></script>
+  <script src="sites-data.js?v=23"></script>
+  <script src="dashboard.js?v=26"></script>
+  <script src="blackcases.js?v=23"></script>
 </body>
 </html>
 
