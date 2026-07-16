@@ -3508,3 +3508,127 @@ function descargarReporteCsvFallback(data, nombreArchivo) {
   URL.revokeObjectURL(url);
 }
 
+
+
+/* =========================
+   ASISTENTE GUÍA ACCESS TICKETS
+   Respuestas locales. No usa API ni modifica guardados.
+========================= */
+(function inicializarAsistenteGuia() {
+  const respuestas = {
+    actualizar: "Para actualizar un ticket:\n1. Selecciona un registro en la bandeja.\n2. Revisa el panel derecho.\n3. Cambia Estado, Validado, Torre, Responsable, Incidencia o Afectación.\n4. Escribe un comentario si corresponde.\n5. Presiona Guardar actualización.",
+    blackcases: "Black cases sirve para casos críticos o bloqueados.\nDesde un ticket puedes marcar Pasar a Black case y guardar. El sistema creará el IDP y mantendrá la trazabilidad relacionada.",
+    historial: "Para ver historial, selecciona un ticket o Black case. La trazabilidad aparecerá en el panel de detalle con fecha, usuario, cambios y comentarios registrados.",
+    filtros: "Usa los filtros de la cabecera para buscar por ID, CU, Site, zona, tipo de incidencia, afectación, torre, estado, responsable o días. Para volver al listado completo, presiona Limpiar filtros.",
+    incidencia: "Incidencia clasifica el tipo de problema: acceso, deuda, contrato, insalubridad, corrosión, SPAT, alta temperatura, robo/vandalismo, falta de servidumbre, entre otros.",
+    afectacion: "Afectación indica el impacto del caso: parcial, total, sin afectación, N/A o interferencia. Este dato ayuda a priorizar la atención.",
+    reporte: "Para generar un reporte, aplica los filtros necesarios y presiona Generar reporte. Se exportará la información visible según la selección actual.",
+    ayuda: "Puedo orientarte con: actualizar ticket, Black cases, historial, filtros, incidencia, afectación o reportes. Elige una opción o escribe una palabra clave."
+  };
+
+  function cuandoEsteListo(callback) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", callback);
+    } else {
+      callback();
+    }
+  }
+
+  function detectarTema(texto) {
+    const t = String(texto || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    if (t.includes("black") || t.includes("idp")) return "blackcases";
+    if (t.includes("historial") || t.includes("trazabilidad") || t.includes("seguimiento")) return "historial";
+    if (t.includes("filtro") || t.includes("buscar") || t.includes("busqueda")) return "filtros";
+    if (t.includes("incidencia") || t.includes("problema") || t.includes("casuistica")) return "incidencia";
+    if (t.includes("afectacion") || t.includes("impacto")) return "afectacion";
+    if (t.includes("reporte") || t.includes("excel") || t.includes("exportar")) return "reporte";
+    if (t.includes("actualizar") || t.includes("guardar") || t.includes("comentario") || t.includes("responsable") || t.includes("estado")) return "actualizar";
+    return "ayuda";
+  }
+
+  cuandoEsteListo(function() {
+    const assistant = document.getElementById("guideAssistant");
+    const mascotBtn = document.getElementById("guideMascotBtn");
+    const card = document.getElementById("guideChatCard");
+    const closeBtn = document.getElementById("guideCloseBtn");
+    const hideAllBtn = document.getElementById("guideHideAllBtn");
+    const reopenBtn = document.getElementById("guideReopenBtn");
+    const body = document.getElementById("guideChatBody");
+    const options = document.getElementById("guideQuickOptions");
+    const form = document.getElementById("guideInputForm");
+    const input = document.getElementById("guideInput");
+
+    if (!assistant || !mascotBtn || !card || !body) return;
+
+    function agregarMensaje(texto, tipo) {
+      const div = document.createElement("div");
+      div.className = "guide-message " + (tipo === "user" ? "guide-message-user" : "guide-message-bot");
+      div.textContent = texto;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function responderPorTema(tema) {
+      agregarMensaje(respuestas[tema] || respuestas.ayuda, "bot");
+    }
+
+    function abrir() {
+      card.classList.remove("guide-hidden");
+      mascotBtn.setAttribute("aria-label", "Cerrar asistente de ayuda");
+    }
+
+    function cerrar() {
+      card.classList.add("guide-hidden");
+      mascotBtn.setAttribute("aria-label", "Abrir asistente de ayuda");
+    }
+
+    function ocultarMascota() {
+      cerrar();
+      document.body.classList.add("guide-assistant-closed");
+    }
+
+    function mostrarMascota() {
+      document.body.classList.remove("guide-assistant-closed");
+      abrir();
+    }
+
+    mascotBtn.addEventListener("click", function() {
+      if (card.classList.contains("guide-hidden")) abrir();
+      else cerrar();
+    });
+
+    if (closeBtn) closeBtn.addEventListener("click", cerrar);
+    if (hideAllBtn) hideAllBtn.addEventListener("click", ocultarMascota);
+    if (reopenBtn) reopenBtn.addEventListener("click", mostrarMascota);
+
+    if (options) {
+      options.addEventListener("click", function(event) {
+        const btn = event.target.closest("button[data-guide-topic]");
+        if (!btn) return;
+        const tema = btn.getAttribute("data-guide-topic");
+        agregarMensaje(btn.textContent.trim(), "user");
+        responderPorTema(tema);
+      });
+    }
+
+    if (form && input) {
+      form.addEventListener("submit", function(event) {
+        event.preventDefault();
+        const texto = input.value.trim();
+        if (!texto) return;
+        agregarMensaje(texto, "user");
+        responderPorTema(detectarTema(texto));
+        input.value = "";
+      });
+    }
+
+    // En escritorio aparece abierto para que se note en la prueba; en móvil inicia cerrado.
+    if (window.matchMedia && window.matchMedia("(max-width: 640px)").matches) {
+      cerrar();
+    } else {
+      abrir();
+    }
+  });
+})();
