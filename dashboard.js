@@ -3675,7 +3675,9 @@ const dynamicReportState = {
   values: [],
   filterValues: {},
   currentData: [],
-  pivotMatrix: { headers: [], rows: [] }
+  pivotMatrix: { headers: [], rows: [] },
+  pivotSort: { index: null, direction: "asc" },
+  rawSort: { field: null, direction: "asc" }
 };
 
 function dynamicEscapeHtml(value) {
@@ -3893,6 +3895,8 @@ function limpiarDynamicReport() {
   dynamicReportState.rows = [];
   dynamicReportState.values = [];
   dynamicReportState.filterValues = {};
+  dynamicReportState.pivotSort = { index: null, direction: "asc" };
+  dynamicReportState.rawSort = { field: null, direction: "asc" };
   renderizarDynamicZones();
   actualizarDynamicReport();
 }
@@ -4002,16 +4006,137 @@ function actualizarDynamicReport() {
   }
 }
 
+function obtenerFechaOrdenDynamic(valor) {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return null;
+
+  const match = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!match) return null;
+
+  const [, dia, mes, anio, hora = "0", minuto = "0", segundo = "0"] = match;
+  const fecha = new Date(
+    Number(anio),
+    Number(mes) - 1,
+    Number(dia),
+    Number(hora),
+    Number(minuto),
+    Number(segundo)
+  );
+
+  return isNaN(fecha.getTime()) ? null : fecha.getTime();
+}
+
+function compararValoresDynamic(a, b) {
+  const textoA = String(a ?? "").trim();
+  const textoB = String(b ?? "").trim();
+
+  if (!textoA && !textoB) return 0;
+  if (!textoA) return 1;
+  if (!textoB) return -1;
+
+  const fechaA = obtenerFechaOrdenDynamic(textoA);
+  const fechaB = obtenerFechaOrdenDynamic(textoB);
+  if (fechaA !== null && fechaB !== null) return fechaA - fechaB;
+
+  const numeroA = dynamicNumeric(textoA);
+  const numeroB = dynamicNumeric(textoB);
+  if (numeroA !== null && numeroB !== null) return numeroA - numeroB;
+
+  return textoA.localeCompare(textoB, "es", {
+    numeric: true,
+    sensitivity: "base"
+  });
+}
+
+function obtenerFilasPivotOrdenadasDynamic() {
+  const matrix = dynamicReportState.pivotMatrix;
+  const filas = Array.isArray(matrix.rows) ? matrix.rows.slice() : [];
+  const sort = dynamicReportState.pivotSort;
+
+  if (sort.index === null || sort.index < 0 || sort.index >= matrix.headers.length) {
+    return filas;
+  }
+
+  const factor = sort.direction === "desc" ? -1 : 1;
+  return filas.sort((a, b) => compararValoresDynamic(a[sort.index], b[sort.index]) * factor);
+}
+
+function obtenerDataRawOrdenadaDynamic() {
+  const data = Array.isArray(dynamicReportState.currentData)
+    ? dynamicReportState.currentData.slice()
+    : [];
+
+  const sort = dynamicReportState.rawSort;
+  if (!sort.field) return data;
+
+  const factor = sort.direction === "desc" ? -1 : 1;
+  return data.sort((a, b) => {
+    const valorA = obtenerValorDynamic(a, sort.field);
+    const valorB = obtenerValorDynamic(b, sort.field);
+    return compararValoresDynamic(valorA, valorB) * factor;
+  });
+}
+
+function indicadorOrdenPivotDynamic(index) {
+  const sort = dynamicReportState.pivotSort;
+  if (sort.index !== index) return " ↕";
+  return sort.direction === "asc" ? " ▲" : " ▼";
+}
+
+function indicadorOrdenRawDynamic(field) {
+  const sort = dynamicReportState.rawSort;
+  if (sort.field !== field) return " ↕";
+  return sort.direction === "asc" ? " ▲" : " ▼";
+}
+
 function renderizarPivotDynamic() {
   const head = document.getElementById("dynamicPivotHead");
   const body = document.getElementById("dynamicPivotBody");
   if (!head || !body) return;
-  const matrix = dynamicReportState.pivotMatrix;
 
-  head.innerHTML = `<tr>${matrix.headers.map(h => `<th>${dynamicEscapeHtml(h)}</th>`).join("")}</tr>`;
-  body.innerHTML = matrix.rows.length
-    ? matrix.rows.map(row => `<tr>${row.map((v,i) => `<td class="${typeof v === "number" && i >= dynamicReportState.rows.length ? "dynamic-number" : ""}">${dynamicEscapeHtml(formatDynamicNumber(v))}</td>`).join("")}</tr>`).join("")
+  const matrix = dynamicReportState.pivotMatrix;
+  const filasOrdenadas = obtenerFilasPivotOrdenadasDynamic();
+
+  head.innerHTML = `
+    <tr>
+      ${matrix.headers.map((h, index) => `
+        <th
+          data-dynamic-pivot-sort="${index}"
+          title="Ordenar ascendente / descendente"
+          style="cursor:pointer; user-select:none;"
+        >
+          ${dynamicEscapeHtml(h)}${indicadorOrdenPivotDynamic(index)}
+        </th>
+      `).join("")}
+    </tr>
+  `;
+
+  body.innerHTML = filasOrdenadas.length
+    ? filasOrdenadas.map(row => `
+        <tr>
+          ${row.map((v,i) => `
+            <td class="${typeof v === "number" && i >= dynamicReportState.rows.length ? "dynamic-number" : ""}">
+              ${dynamicEscapeHtml(formatDynamicNumber(v))}
+            </td>
+          `).join("")}
+        </tr>
+      `).join("")
     : `<tr><td colspan="${Math.max(1, matrix.headers.length)}">Sin datos para la configuración seleccionada.</td></tr>`;
+
+  head.querySelectorAll("[data-dynamic-pivot-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const index = Number(th.dataset.dynamicPivotSort);
+
+      if (dynamicReportState.pivotSort.index === index) {
+        dynamicReportState.pivotSort.direction =
+          dynamicReportState.pivotSort.direction === "asc" ? "desc" : "asc";
+      } else {
+        dynamicReportState.pivotSort = { index, direction: "asc" };
+      }
+
+      renderizarPivotDynamic();
+    });
+  });
 }
 
 function obtenerFilaRawDynamic(ticket) {
@@ -4028,14 +4153,27 @@ function renderizarRawDynamic() {
   const count = document.getElementById("dynamicDataCount");
   if (!head || !body) return;
 
-  const data = dynamicReportState.currentData;
+  const data = obtenerDataRawOrdenadaDynamic();
   if (count) count.textContent = `${data.length} registros`;
 
-  head.innerHTML = `<tr>${DYNAMIC_REPORT_FIELDS.map(f => `<th>${dynamicEscapeHtml(f)}</th>`).join("")}</tr>`;
+  head.innerHTML = `
+    <tr>
+      ${DYNAMIC_REPORT_FIELDS.map(field => `
+        <th
+          data-dynamic-raw-sort="${dynamicEscapeHtml(field)}"
+          title="Ordenar A-Z / Z-A, menor-mayor o fecha"
+          style="cursor:pointer; user-select:none;"
+        >
+          ${dynamicEscapeHtml(field)}${indicadorOrdenRawDynamic(field)}
+        </th>
+      `).join("")}
+    </tr>
+  `;
 
   // Para mantener el modal ágil, se muestran hasta 300 filas en pantalla.
   // La exportación Excel incluye TODAS las filas utilizadas.
   const visible = data.slice(0, 300);
+
   body.innerHTML = visible.length
     ? visible.map(ticket => {
         const row = obtenerFilaRawDynamic(ticket);
@@ -4044,8 +4182,26 @@ function renderizarRawDynamic() {
     : `<tr><td colspan="${DYNAMIC_REPORT_FIELDS.length}">Sin registros.</td></tr>`;
 
   if (data.length > 300) {
-    body.insertAdjacentHTML("beforeend", `<tr><td colspan="${DYNAMIC_REPORT_FIELDS.length}"><strong>Vista limitada a 300 filas. Excel exportará los ${data.length} registros.</strong></td></tr>`);
+    body.insertAdjacentHTML(
+      "beforeend",
+      `<tr><td colspan="${DYNAMIC_REPORT_FIELDS.length}"><strong>Vista limitada a 300 filas. Excel exportará los ${data.length} registros.</strong></td></tr>`
+    );
   }
+
+  head.querySelectorAll("[data-dynamic-raw-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const field = th.dataset.dynamicRawSort;
+
+      if (dynamicReportState.rawSort.field === field) {
+        dynamicReportState.rawSort.direction =
+          dynamicReportState.rawSort.direction === "asc" ? "desc" : "asc";
+      } else {
+        dynamicReportState.rawSort = { field, direction: "asc" };
+      }
+
+      renderizarRawDynamic();
+    });
+  });
 }
 
 function exportarDynamicExcel() {
@@ -4055,7 +4211,8 @@ function exportarDynamicExcel() {
   }
 
   const matrix = dynamicReportState.pivotMatrix;
-  const rawData = dynamicReportState.currentData.map(obtenerFilaRawDynamic);
+  const pivotRowsOrdenadas = obtenerFilasPivotOrdenadasDynamic();
+  const rawData = obtenerDataRawOrdenadaDynamic().map(obtenerFilaRawDynamic);
 
   if (!rawData.length) {
     alert("No hay datos para exportar.");
@@ -4063,7 +4220,7 @@ function exportarDynamicExcel() {
   }
 
   const wb = XLSX.utils.book_new();
-  const pivotAoa = [matrix.headers, ...matrix.rows.map(r => r.map(formatDynamicNumber))];
+  const pivotAoa = [matrix.headers, ...pivotRowsOrdenadas.map(r => r.map(formatDynamicNumber))];
   const wsPivot = XLSX.utils.aoa_to_sheet(pivotAoa);
   const wsData = XLSX.utils.json_to_sheet(rawData, { header: DYNAMIC_REPORT_FIELDS });
 
