@@ -3632,3 +3632,496 @@ function descargarReporteCsvFallback(data, nombreArchivo) {
     }
   });
 })();
+
+/* =========================================================
+   DYNAMIT REPORT - TABLA DINÁMICA
+   - Usa ticketsData completo, NO ticketsFiltrados.
+   - No modifica la lógica del reporte existente.
+========================================================= */
+const DYNAMIC_REPORT_FIELDS = [
+  "ID",
+  "ASUNTO",
+  "REPORTADO",
+  "CORREO",
+  "EMPRESA",
+  "AREA",
+  "SITE",
+  "CU",
+  "SITIO",
+  "TORRERO",
+  "IMPEDIMENTO",
+  "INCIDENCIA",
+  "DESCRIPCION",
+  "ESPECIFICAR",
+  "MANETNIMIENTO",
+  "AFECTACION",
+  "FECHA_REGISTRO",
+  "ESTADO",
+  "VALIDADO",
+  "RESPONSABLE",
+  "FECHA_CIERRE",
+  "COLOR",
+  "ZONA",
+  "ULTIMO_COMENTARIO",
+  "ULTIMA_ACTUALIZACION",
+  "ES_BLACK_CASE",
+  "ID_BLACK_CASE"
+];
+
+const dynamicReportState = {
+  filters: [],
+  columns: [],
+  rows: [],
+  values: [],
+  filterValues: {},
+  currentData: [],
+  pivotMatrix: { headers: [], rows: [] }
+};
+
+function dynamicEscapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function obtenerValorDynamic(ticket, field) {
+  if (!ticket) return "";
+
+  // Alias defensivos para respetar los nombres del encabezado ACCESO.
+  const alias = {
+    MANETNIMIENTO: ["MANETNIMIENTO", "MANTENIMIENTO"],
+    REPORTADO: ["REPORTADO", "REPORTADO_POR"],
+    AREA: ["AREA", "ÁREA"],
+    DESCRIPCION: ["DESCRIPCION", "DESCRIPCIÓN"],
+    ULTIMO_COMENTARIO: ["ULTIMO_COMENTARIO", "ÚLTIMO_COMENTARIO"],
+    ULTIMA_ACTUALIZACION: ["ULTIMA_ACTUALIZACION", "ÚLTIMA_ACTUALIZACION"],
+    ES_BLACK_CASE: ["ES_BLACK_CASE"],
+    ID_BLACK_CASE: ["ID_BLACK_CASE"]
+  };
+
+  const candidatos = alias[field] || [field];
+  let value = "";
+  for (const key of candidatos) {
+    if (ticket[key] !== undefined && ticket[key] !== null) {
+      value = ticket[key];
+      break;
+    }
+  }
+
+  if (field === "FECHA_REGISTRO" || field === "FECHA_CIERRE") {
+    return value ? formatearFechaSolo(value) : "";
+  }
+
+  if (field === "COLOR") {
+    return obtenerLabelColorTicket(ticket);
+  }
+
+  if (field === "VALIDADO") {
+    return normalizarValidado(value || ticket.VALIDADO || "");
+  }
+
+  return String(value ?? "").trim();
+}
+
+function obtenerDataCompletaDynamic() {
+  // Importante: SIEMPRE se usa ticketsData, nunca ticketsFiltrados.
+  return Array.isArray(ticketsData) ? ticketsData.slice() : [];
+}
+
+function abrirDynamicReport() {
+  const modal = document.getElementById("dynamicReportModal");
+  if (!modal) return;
+
+  dynamicReportState.currentData = obtenerDataCompletaDynamic();
+  renderizarDynamicFields();
+  renderizarDynamicZones();
+  actualizarDynamicReport();
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function cerrarDynamicReport() {
+  const modal = document.getElementById("dynamicReportModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden", "true");
+}
+
+function renderizarDynamicFields() {
+  const cont = document.getElementById("dynamicFieldsList");
+  if (!cont) return;
+  const query = String(document.getElementById("dynamicFieldSearch")?.value || "").trim().toLowerCase();
+  const fields = DYNAMIC_REPORT_FIELDS.filter(f => f.toLowerCase().includes(query));
+
+  cont.innerHTML = fields.map(field => `
+    <div class="dynamic-field-item" draggable="true" data-field="${dynamicEscapeHtml(field)}" title="Arrastrar ${dynamicEscapeHtml(field)}">
+      <span class="dynamic-field-icon"></span>
+      <span>${dynamicEscapeHtml(field)}</span>
+    </div>
+  `).join("");
+
+  cont.querySelectorAll(".dynamic-field-item").forEach(item => {
+    item.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", item.dataset.field || "");
+      e.dataTransfer.effectAllowed = "copy";
+    });
+
+    item.addEventListener("click", () => {
+      agregarCampoDynamic("rows", item.dataset.field || "");
+    });
+  });
+}
+
+function agregarCampoDynamic(zone, field) {
+  if (!DYNAMIC_REPORT_FIELDS.includes(field)) return;
+  if (!["filters", "columns", "rows", "values"].includes(zone)) return;
+
+  const lista = dynamicReportState[zone];
+  if (lista.some(x => (typeof x === "string" ? x : x.field) === field)) return;
+
+  if (zone === "values") {
+    lista.push({ field, agg: "COUNT" });
+  } else {
+    lista.push(field);
+    if (zone === "filters" && dynamicReportState.filterValues[field] === undefined) {
+      dynamicReportState.filterValues[field] = "__ALL__";
+    }
+  }
+
+  renderizarDynamicZones();
+  actualizarDynamicReport();
+}
+
+function eliminarCampoDynamic(zone, field) {
+  if (zone === "values") {
+    dynamicReportState.values = dynamicReportState.values.filter(v => v.field !== field);
+  } else {
+    dynamicReportState[zone] = dynamicReportState[zone].filter(f => f !== field);
+    if (zone === "filters") delete dynamicReportState.filterValues[field];
+  }
+  renderizarDynamicZones();
+  actualizarDynamicReport();
+}
+
+function obtenerOpcionesCampoDynamic(field) {
+  return [...new Set(
+    obtenerDataCompletaDynamic()
+      .map(t => obtenerValorDynamic(t, field))
+      .map(v => v || "(Vacío)")
+  )].sort((a, b) => String(a).localeCompare(String(b), "es", { numeric: true }));
+}
+
+function renderizarDynamicZones() {
+  const map = {
+    filters: document.getElementById("dynamicZoneFilters"),
+    columns: document.getElementById("dynamicZoneColumns"),
+    rows: document.getElementById("dynamicZoneRows"),
+    values: document.getElementById("dynamicZoneValues")
+  };
+
+  Object.entries(map).forEach(([zone, el]) => {
+    if (!el) return;
+    const items = dynamicReportState[zone];
+    if (!items.length) {
+      el.innerHTML = `<div class="dynamic-zone-empty">Arrastra campos aquí</div>`;
+      return;
+    }
+
+    if (zone === "filters") {
+      el.innerHTML = items.map(field => {
+        const options = obtenerOpcionesCampoDynamic(field);
+        const selected = dynamicReportState.filterValues[field] ?? "__ALL__";
+        return `
+          <div class="dynamic-zone-pill" data-field="${dynamicEscapeHtml(field)}">
+            <span>${dynamicEscapeHtml(field)}</span>
+            <button class="dynamic-pill-remove" type="button" data-remove-zone="filters" data-remove-field="${dynamicEscapeHtml(field)}">×</button>
+            <select class="dynamic-filter-control" data-filter-field="${dynamicEscapeHtml(field)}">
+              <option value="__ALL__">(Todos)</option>
+              ${options.map(v => `<option value="${dynamicEscapeHtml(v)}" ${selected === v ? "selected" : ""}>${dynamicEscapeHtml(v)}</option>`).join("")}
+            </select>
+          </div>`;
+      }).join("");
+    } else if (zone === "values") {
+      el.innerHTML = items.map(item => `
+        <div class="dynamic-zone-pill">
+          <span>${dynamicEscapeHtml(item.field)}</span>
+          <select data-value-field="${dynamicEscapeHtml(item.field)}">
+            ${["COUNT","COUNT DISTINCT","SUM","AVG","MIN","MAX"].map(agg => `<option value="${agg}" ${item.agg === agg ? "selected" : ""}>${agg}</option>`).join("")}
+          </select>
+          <button class="dynamic-pill-remove" type="button" data-remove-zone="values" data-remove-field="${dynamicEscapeHtml(item.field)}">×</button>
+        </div>
+      `).join("");
+    } else {
+      el.innerHTML = items.map(field => `
+        <div class="dynamic-zone-pill">
+          <span>${dynamicEscapeHtml(field)}</span>
+          <button class="dynamic-pill-remove" type="button" data-remove-zone="${zone}" data-remove-field="${dynamicEscapeHtml(field)}">×</button>
+        </div>
+      `).join("");
+    }
+  });
+
+  document.querySelectorAll("#dynamicReportModal .dynamic-pill-remove").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      eliminarCampoDynamic(btn.dataset.removeZone, btn.dataset.removeField);
+    });
+  });
+
+  document.querySelectorAll("#dynamicReportModal [data-filter-field]").forEach(select => {
+    select.addEventListener("change", () => {
+      dynamicReportState.filterValues[select.dataset.filterField] = select.value;
+      actualizarDynamicReport();
+    });
+  });
+
+  document.querySelectorAll("#dynamicReportModal [data-value-field]").forEach(select => {
+    select.addEventListener("change", () => {
+      const valueItem = dynamicReportState.values.find(v => v.field === select.dataset.valueField);
+      if (valueItem) valueItem.agg = select.value;
+      actualizarDynamicReport();
+    });
+  });
+}
+
+function limpiarDynamicReport() {
+  dynamicReportState.filters = [];
+  dynamicReportState.columns = [];
+  dynamicReportState.rows = [];
+  dynamicReportState.values = [];
+  dynamicReportState.filterValues = {};
+  renderizarDynamicZones();
+  actualizarDynamicReport();
+}
+
+function filtrarDataDynamic(data) {
+  if (!dynamicReportState.filters.length) return data.slice();
+  return data.filter(ticket => dynamicReportState.filters.every(field => {
+    const selected = dynamicReportState.filterValues[field] ?? "__ALL__";
+    if (selected === "__ALL__") return true;
+    const value = obtenerValorDynamic(ticket, field) || "(Vacío)";
+    return value === selected;
+  }));
+}
+
+function dynamicNumeric(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const cleaned = String(value ?? "").replace(/\s/g, "").replace(/,/g, ".");
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+function calcularAgregadoDynamic(items, field, agg) {
+  if (agg === "COUNT") return items.length;
+
+  const raw = items.map(t => obtenerValorDynamic(t, field));
+  if (agg === "COUNT DISTINCT") {
+    return new Set(raw.filter(v => v !== "")).size;
+  }
+
+  const nums = raw.map(dynamicNumeric).filter(v => v !== null);
+  if (!nums.length) return 0;
+  if (agg === "SUM") return nums.reduce((a,b) => a+b, 0);
+  if (agg === "AVG") return nums.reduce((a,b) => a+b, 0) / nums.length;
+  if (agg === "MIN") return Math.min(...nums);
+  if (agg === "MAX") return Math.max(...nums);
+  return items.length;
+}
+
+function formatDynamicNumber(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return value;
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toLocaleString("es-PE", { maximumFractionDigits: 2 });
+}
+
+function construirPivotDynamic(data) {
+  const rowFields = dynamicReportState.rows;
+  const colFields = dynamicReportState.columns;
+  const values = dynamicReportState.values.length
+    ? dynamicReportState.values
+    : [{ field: "ID", agg: "COUNT", synthetic: true }];
+
+  if (!rowFields.length && !colFields.length) {
+    return {
+      headers: ["Métrica", "Valor"],
+      rows: values.map(v => [v.synthetic ? "Cantidad de registros" : `${v.agg} de ${v.field}`, calcularAgregadoDynamic(data, v.field, v.agg)])
+    };
+  }
+
+  const makeKey = (ticket, fields) => fields.map(f => obtenerValorDynamic(ticket, f) || "(Vacío)").join(" | ");
+  const rowKeys = rowFields.length ? [...new Set(data.map(t => makeKey(t, rowFields)))] : ["Total"];
+  const colKeys = colFields.length ? [...new Set(data.map(t => makeKey(t, colFields)))] : [""];
+
+  rowKeys.sort((a,b) => a.localeCompare(b, "es", { numeric: true }));
+  colKeys.sort((a,b) => a.localeCompare(b, "es", { numeric: true }));
+
+  const headers = [...(rowFields.length ? rowFields : ["FILAS"])];
+  if (colFields.length) {
+    for (const colKey of colKeys) {
+      for (const v of values) {
+        const metric = v.synthetic ? "Cantidad" : `${v.agg} ${v.field}`;
+        headers.push(`${colKey} · ${metric}`);
+      }
+    }
+  } else {
+    for (const v of values) headers.push(v.synthetic ? "Cantidad" : `${v.agg} ${v.field}`);
+  }
+
+  const rows = rowKeys.map(rowKey => {
+    const rowParts = rowFields.length ? rowKey.split(" | ") : ["Total"];
+    const out = [...rowParts];
+    const rowData = rowFields.length ? data.filter(t => makeKey(t, rowFields) === rowKey) : data;
+
+    for (const colKey of colKeys) {
+      const groupData = colFields.length ? rowData.filter(t => makeKey(t, colFields) === colKey) : rowData;
+      for (const v of values) out.push(calcularAgregadoDynamic(groupData, v.field, v.agg));
+    }
+    return out;
+  });
+
+  return { headers, rows };
+}
+
+function actualizarDynamicReport() {
+  const source = obtenerDataCompletaDynamic();
+  const used = filtrarDataDynamic(source);
+  dynamicReportState.currentData = used;
+  dynamicReportState.pivotMatrix = construirPivotDynamic(used);
+  renderizarPivotDynamic();
+  renderizarRawDynamic();
+
+  const summary = document.getElementById("dynamicSummaryText");
+  if (summary) {
+    const rowText = dynamicReportState.rows.length ? `Filas: ${dynamicReportState.rows.join(", ")}` : "Sin filas";
+    const colText = dynamicReportState.columns.length ? `Columnas: ${dynamicReportState.columns.join(", ")}` : "Sin columnas";
+    summary.textContent = `${rowText} · ${colText} · ${used.length} registros`;
+  }
+}
+
+function renderizarPivotDynamic() {
+  const head = document.getElementById("dynamicPivotHead");
+  const body = document.getElementById("dynamicPivotBody");
+  if (!head || !body) return;
+  const matrix = dynamicReportState.pivotMatrix;
+
+  head.innerHTML = `<tr>${matrix.headers.map(h => `<th>${dynamicEscapeHtml(h)}</th>`).join("")}</tr>`;
+  body.innerHTML = matrix.rows.length
+    ? matrix.rows.map(row => `<tr>${row.map((v,i) => `<td class="${typeof v === "number" && i >= dynamicReportState.rows.length ? "dynamic-number" : ""}">${dynamicEscapeHtml(formatDynamicNumber(v))}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${Math.max(1, matrix.headers.length)}">Sin datos para la configuración seleccionada.</td></tr>`;
+}
+
+function obtenerFilaRawDynamic(ticket) {
+  const row = {};
+  DYNAMIC_REPORT_FIELDS.forEach(field => {
+    row[field] = obtenerValorDynamic(ticket, field);
+  });
+  return row;
+}
+
+function renderizarRawDynamic() {
+  const head = document.getElementById("dynamicRawHead");
+  const body = document.getElementById("dynamicRawBody");
+  const count = document.getElementById("dynamicDataCount");
+  if (!head || !body) return;
+
+  const data = dynamicReportState.currentData;
+  if (count) count.textContent = `${data.length} registros`;
+
+  head.innerHTML = `<tr>${DYNAMIC_REPORT_FIELDS.map(f => `<th>${dynamicEscapeHtml(f)}</th>`).join("")}</tr>`;
+
+  // Para mantener el modal ágil, se muestran hasta 300 filas en pantalla.
+  // La exportación Excel incluye TODAS las filas utilizadas.
+  const visible = data.slice(0, 300);
+  body.innerHTML = visible.length
+    ? visible.map(ticket => {
+        const row = obtenerFilaRawDynamic(ticket);
+        return `<tr>${DYNAMIC_REPORT_FIELDS.map(f => `<td>${dynamicEscapeHtml(row[f])}</td>`).join("")}</tr>`;
+      }).join("")
+    : `<tr><td colspan="${DYNAMIC_REPORT_FIELDS.length}">Sin registros.</td></tr>`;
+
+  if (data.length > 300) {
+    body.insertAdjacentHTML("beforeend", `<tr><td colspan="${DYNAMIC_REPORT_FIELDS.length}"><strong>Vista limitada a 300 filas. Excel exportará los ${data.length} registros.</strong></td></tr>`);
+  }
+}
+
+function exportarDynamicExcel() {
+  if (!window.XLSX) {
+    alert("La librería XLSX no está disponible.");
+    return;
+  }
+
+  const matrix = dynamicReportState.pivotMatrix;
+  const rawData = dynamicReportState.currentData.map(obtenerFilaRawDynamic);
+
+  if (!rawData.length) {
+    alert("No hay datos para exportar.");
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const pivotAoa = [matrix.headers, ...matrix.rows.map(r => r.map(formatDynamicNumber))];
+  const wsPivot = XLSX.utils.aoa_to_sheet(pivotAoa);
+  const wsData = XLSX.utils.json_to_sheet(rawData, { header: DYNAMIC_REPORT_FIELDS });
+
+  wsPivot["!cols"] = matrix.headers.map((h, i) => ({ wch: Math.min(Math.max(String(h).length + 4, i < dynamicReportState.rows.length ? 18 : 14), 38) }));
+  wsData["!cols"] = DYNAMIC_REPORT_FIELDS.map(f => ({
+    wch: ["DESCRIPCION", "ULTIMO_COMENTARIO"].includes(f) ? 55 : Math.min(Math.max(f.length + 4, 14), 25)
+  }));
+
+  XLSX.utils.book_append_sheet(wb, wsPivot, "Tabla Dinamica");
+  XLSX.utils.book_append_sheet(wb, wsData, "Data Utilizada");
+
+  const fecha = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `dynamit_report_${fecha}.xlsx`);
+}
+
+function inicializarDynamicReport() {
+  const btn = document.getElementById("btnDynamicReport");
+  const modal = document.getElementById("dynamicReportModal");
+  const btnClose = document.getElementById("btnCerrarDynamicReport");
+  const search = document.getElementById("dynamicFieldSearch");
+  const btnLimpiar = document.getElementById("btnDynamicLimpiar");
+  const btnActualizar = document.getElementById("btnDynamicActualizar");
+  const btnExport = document.getElementById("btnDynamicExportExcel");
+
+  if (btn) btn.addEventListener("click", abrirDynamicReport);
+  if (btnClose) btnClose.addEventListener("click", cerrarDynamicReport);
+  if (search) search.addEventListener("input", renderizarDynamicFields);
+  if (btnLimpiar) btnLimpiar.addEventListener("click", limpiarDynamicReport);
+  if (btnActualizar) btnActualizar.addEventListener("click", actualizarDynamicReport);
+  if (btnExport) btnExport.addEventListener("click", exportarDynamicExcel);
+
+  if (modal) {
+    modal.addEventListener("click", e => {
+      if (e.target === modal) cerrarDynamicReport();
+    });
+  }
+
+  document.querySelectorAll("#dynamicReportModal .dynamic-drop-zone").forEach(zoneEl => {
+    zoneEl.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      zoneEl.classList.add("drag-over");
+    });
+    zoneEl.addEventListener("dragleave", () => zoneEl.classList.remove("drag-over"));
+    zoneEl.addEventListener("drop", e => {
+      e.preventDefault();
+      zoneEl.classList.remove("drag-over");
+      const field = e.dataTransfer.getData("text/plain");
+      agregarCampoDynamic(zoneEl.dataset.zone, field);
+    });
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) cerrarDynamicReport();
+  });
+
+  renderizarDynamicFields();
+  renderizarDynamicZones();
+}
+
+document.addEventListener("DOMContentLoaded", inicializarDynamicReport);
