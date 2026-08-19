@@ -5073,3 +5073,194 @@ body:not(.sidebar-collapsed) .sidebar-header {
   .dynamic-drop-grid { grid-template-columns: 1fr; }
   .dynamic-report-card { width: 99vw; height: 97vh; }
 }
+
+
+/* =========================================================
+   V31 - BOTONES BANDEJA + FILTROS MÚLTIPLES DYNAMIT REPORT
+========================================================= */
+
+/* Botonera de Bandeja: estado normal blanco, hover suave y click azul claro */
+#btnLimpiarFiltros,
+#btnGenerarReporte,
+#btnDynamicReport,
+#btnFiltrarBlackCases {
+  height: 28px;
+  border: 1px solid #94a3b8 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .08s ease;
+}
+
+#btnLimpiarFiltros:hover,
+#btnGenerarReporte:hover,
+#btnDynamicReport:hover,
+#btnFiltrarBlackCases:hover {
+  background: #f1f5f9 !important;
+  border-color: #64748b !important;
+  color: #0f172a !important;
+}
+
+#btnLimpiarFiltros:active,
+#btnGenerarReporte:active,
+#btnDynamicReport:active,
+#btnFiltrarBlackCases:active,
+#btnFiltrarBlackCases.active {
+  background: #dbeafe !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, .14);
+  transform: translateY(1px);
+}
+
+/* Refrescar data conserva la forma del topbar pero con el mismo lenguaje visual */
+#btnRefrescarData {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(255,255,255,.72) !important;
+  transition: background-color .16s ease, color .16s ease, box-shadow .16s ease, transform .08s ease;
+}
+
+#btnRefrescarData:hover {
+  background: #f1f5f9 !important;
+}
+
+#btnRefrescarData:active {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.28);
+  transform: translateY(1px);
+}
+
+/* Filtro múltiple compacto dentro de Dynamit Report */
+.dynamic-filter-pill {
+  min-width: 185px;
+  align-items: stretch !important;
+  gap: 5px !important;
+}
+
+.dynamic-filter-pill-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.dynamic-filter-multi {
+  position: relative;
+  width: 100%;
+}
+
+.dynamic-filter-multi > summary {
+  list-style: none;
+  width: 100%;
+  height: 28px;
+  border: 1px solid #93c5fd;
+  background: #ffffff;
+  border-radius: 9px;
+  padding: 0 28px 0 9px;
+  display: flex;
+  align-items: center;
+  color: #334155;
+  font-size: 10px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dynamic-filter-multi > summary::-webkit-details-marker { display: none; }
+
+.dynamic-filter-multi > summary::after {
+  content: "⌄";
+  position: absolute;
+  right: 9px;
+  top: 4px;
+  font-size: 15px;
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.dynamic-filter-multi[open] > summary {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .12);
+}
+
+.dynamic-filter-menu {
+  position: absolute;
+  z-index: 6000;
+  left: 0;
+  top: calc(100% + 4px);
+  width: max(220px, 100%);
+  max-width: 330px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, .20);
+  padding: 7px;
+}
+
+.dynamic-filter-menu-actions {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dynamic-filter-menu-actions button {
+  flex: 1;
+  height: 25px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dynamic-filter-menu-actions button:hover {
+  background: #dbeafe;
+}
+
+.dynamic-filter-options {
+  max-height: 230px;
+  overflow-y: auto;
+  padding-top: 5px;
+}
+
+.dynamic-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 27px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: #0f172a;
+  font-size: 10px;
+}
+
+.dynamic-filter-option:hover {
+  background: #eff6ff;
+}
+
+.dynamic-filter-option input {
+  width: 14px;
+  height: 14px;
+  accent-color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.dynamic-filter-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
