@@ -3660,6 +3660,7 @@ const DYNAMIC_REPORT_FIELDS = [
   "VALIDADO",
   "RESPONSABLE",
   "FECHA_CIERRE",
+  "DIAS",
   "COLOR",
   "ZONA",
   "ULTIMO_COMENTARIO",
@@ -3701,7 +3702,8 @@ function obtenerValorDynamic(ticket, field) {
     ULTIMO_COMENTARIO: ["ULTIMO_COMENTARIO", "ÚLTIMO_COMENTARIO"],
     ULTIMA_ACTUALIZACION: ["ULTIMA_ACTUALIZACION", "ÚLTIMA_ACTUALIZACION"],
     ES_BLACK_CASE: ["ES_BLACK_CASE"],
-    ID_BLACK_CASE: ["ID_BLACK_CASE"]
+    ID_BLACK_CASE: ["ID_BLACK_CASE"],
+    DIAS: ["DIAS_CALCULADOS", "DIAS"]
   };
 
   const candidatos = alias[field] || [field];
@@ -3723,6 +3725,10 @@ function obtenerValorDynamic(ticket, field) {
 
   if (field === "VALIDADO") {
     return normalizarValidado(value || ticket.VALIDADO || "");
+  }
+
+  if (field === "DIAS") {
+    return String(ticket.DIAS_CALCULADOS ?? ticket.DIAS ?? 0);
   }
 
   return String(value ?? "").trim();
@@ -3789,7 +3795,7 @@ function agregarCampoDynamic(zone, field) {
   } else {
     lista.push(field);
     if (zone === "filters" && dynamicReportState.filterValues[field] === undefined) {
-      dynamicReportState.filterValues[field] = "__ALL__";
+      dynamicReportState.filterValues[field] = [];
     }
   }
 
@@ -3835,15 +3841,41 @@ function renderizarDynamicZones() {
     if (zone === "filters") {
       el.innerHTML = items.map(field => {
         const options = obtenerOpcionesCampoDynamic(field);
-        const selected = dynamicReportState.filterValues[field] ?? "__ALL__";
+        const selectedValues = Array.isArray(dynamicReportState.filterValues[field])
+          ? dynamicReportState.filterValues[field]
+          : [];
+        const labelSeleccion = selectedValues.length === 0
+          ? "(Todos)"
+          : `${selectedValues.length} seleccionados`;
+
         return `
-          <div class="dynamic-zone-pill" data-field="${dynamicEscapeHtml(field)}">
-            <span>${dynamicEscapeHtml(field)}</span>
-            <button class="dynamic-pill-remove" type="button" data-remove-zone="filters" data-remove-field="${dynamicEscapeHtml(field)}">×</button>
-            <select class="dynamic-filter-control" data-filter-field="${dynamicEscapeHtml(field)}">
-              <option value="__ALL__">(Todos)</option>
-              ${options.map(v => `<option value="${dynamicEscapeHtml(v)}" ${selected === v ? "selected" : ""}>${dynamicEscapeHtml(v)}</option>`).join("")}
-            </select>
+          <div class="dynamic-zone-pill dynamic-filter-pill" data-field="${dynamicEscapeHtml(field)}">
+            <div class="dynamic-filter-pill-top">
+              <span>${dynamicEscapeHtml(field)}</span>
+              <button class="dynamic-pill-remove" type="button" data-remove-zone="filters" data-remove-field="${dynamicEscapeHtml(field)}">×</button>
+            </div>
+            <details class="dynamic-filter-multi" data-filter-field="${dynamicEscapeHtml(field)}">
+              <summary>${dynamicEscapeHtml(labelSeleccion)}</summary>
+              <div class="dynamic-filter-menu">
+                <div class="dynamic-filter-menu-actions">
+                  <button type="button" data-dynamic-filter-all="${dynamicEscapeHtml(field)}">Todos</button>
+                  <button type="button" data-dynamic-filter-clear="${dynamicEscapeHtml(field)}">Limpiar</button>
+                </div>
+                <div class="dynamic-filter-options">
+                  ${options.map(v => `
+                    <label class="dynamic-filter-option">
+                      <input
+                        type="checkbox"
+                        data-dynamic-filter-check="${dynamicEscapeHtml(field)}"
+                        value="${dynamicEscapeHtml(v)}"
+                        ${selectedValues.includes(v) ? "checked" : ""}
+                      />
+                      <span>${dynamicEscapeHtml(v)}</span>
+                    </label>
+                  `).join("")}
+                </div>
+              </div>
+            </details>
           </div>`;
       }).join("");
     } else if (zone === "values") {
@@ -3873,10 +3905,38 @@ function renderizarDynamicZones() {
     });
   });
 
-  document.querySelectorAll("#dynamicReportModal [data-filter-field]").forEach(select => {
-    select.addEventListener("change", () => {
-      dynamicReportState.filterValues[select.dataset.filterField] = select.value;
+  document.querySelectorAll("#dynamicReportModal [data-dynamic-filter-check]").forEach(check => {
+    check.addEventListener("change", () => {
+      const field = check.dataset.dynamicFilterCheck;
+      const seleccionados = [...document.querySelectorAll(`#dynamicReportModal [data-dynamic-filter-check="${CSS.escape(field)}"]:checked`)]
+        .map(el => el.value);
+      dynamicReportState.filterValues[field] = seleccionados;
       actualizarDynamicReport();
+      const details = check.closest(".dynamic-filter-multi");
+      const summary = details?.querySelector("summary");
+      if (summary) summary.textContent = seleccionados.length === 0 ? "(Todos)" : `${seleccionados.length} seleccionados`;
+    });
+  });
+
+  document.querySelectorAll("#dynamicReportModal [data-dynamic-filter-all]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const field = btn.dataset.dynamicFilterAll;
+      dynamicReportState.filterValues[field] = [];
+      actualizarDynamicReport();
+      renderizarDynamicZones();
+    });
+  });
+
+  document.querySelectorAll("#dynamicReportModal [data-dynamic-filter-clear]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const field = btn.dataset.dynamicFilterClear;
+      dynamicReportState.filterValues[field] = [];
+      actualizarDynamicReport();
+      renderizarDynamicZones();
     });
   });
 
@@ -3904,10 +3964,12 @@ function limpiarDynamicReport() {
 function filtrarDataDynamic(data) {
   if (!dynamicReportState.filters.length) return data.slice();
   return data.filter(ticket => dynamicReportState.filters.every(field => {
-    const selected = dynamicReportState.filterValues[field] ?? "__ALL__";
-    if (selected === "__ALL__") return true;
+    const selectedValues = Array.isArray(dynamicReportState.filterValues[field])
+      ? dynamicReportState.filterValues[field]
+      : [];
+    if (selectedValues.length === 0) return true;
     const value = obtenerValorDynamic(ticket, field) || "(Vacío)";
-    return value === selected;
+    return selectedValues.includes(value);
   }));
 }
 
