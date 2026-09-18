@@ -2,7 +2,7 @@
    BLACK CASES MODULE
    Mantiene independiente la lógica de Bandeja de Tickets.
 ========================= */
-const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec";
+const BLACK_API_URL = "https://script.google.com/macros/s/AKfycbwIrUk1l-ip-zYUFb1YTKCIHT8ir1ELh0Joj8wmLr9TisB2RpyYyxBZiSR2KZzHryhq/exec.";
 
 /* SUPABASE V19 - lectura rápida de historial.
    Pega aquí tu Publishable key de Supabase. Si queda vacío, usará Apps Script como antes. */
